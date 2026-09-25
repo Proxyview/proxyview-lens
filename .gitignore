@@ -1,7 +1,0 @@
-# The Selenium driver is a platform binary, fetched locally rather than
-# committed. tests/run.mjs skips that suite cleanly when it is absent.
-tests/bin/
-
-node_modules/
-.lint-*
-.DS_Store
