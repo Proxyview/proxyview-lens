@@ -1,0 +1,20 @@
+{
+  "name": "proxyview-lens",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Proxyview Lens — retrospective portfolio assurance, client-facing workspace",
+  "type": "module",
+  "scripts": {
+    "stamp": "node tools/stamp.mjs",
+    "test": "node tests/run.mjs",
+    "serve": "node tests/serve.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "eslint": "^10.11.0",
+    "playwright": "^1.56.0",
+    "selenium-webdriver": "^4.49.0"
+  }
+}

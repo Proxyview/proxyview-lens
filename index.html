@@ -1,0 +1,1652 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Retrospective portfolio assurance. Send the closed account; Lens reconstructs what the decision relied upon, tests the evidence across the eight ORA domains, and shows where assurance broke down.">
+<meta name="theme-color" content="#03070f">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%2296%22%20fill%3D%22%2303070f%22%2F%3E%3Cpolygon%20points%3D%22256%2C86%20402%2C170%20402%2C342%20256%2C426%20110%2C342%20110%2C170%22%20fill%3D%22none%22%20stroke%3D%22%2322d3ee%22%20stroke-width%3D%2242%22%20stroke-linejoin%3D%22miter%22%2F%3E%3Ccircle%20cx%3D%22256%22%20cy%3D%22256%22%20r%3D%2262%22%20fill%3D%22%2322d3ee%22%2F%3E%3C%2Fsvg%3E" type="image/svg+xml">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%2296%22%20fill%3D%22%2303070f%22%2F%3E%3Cpolygon%20points%3D%22256%2C86%20402%2C170%20402%2C342%20256%2C426%20110%2C342%20110%2C170%22%20fill%3D%22none%22%20stroke%3D%22%2322d3ee%22%20stroke-width%3D%2242%22%20stroke-linejoin%3D%22miter%22%2F%3E%3Ccircle%20cx%3D%22256%22%20cy%3D%22256%22%20r%3D%2262%22%20fill%3D%22%2322d3ee%22%2F%3E%3C%2Fsvg%3E">
+<link rel="canonical" href="https://www.lens.getproxyview.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Proxyview">
+<meta property="og:title" content="Proxyview Lens">
+<meta property="og:description" content="Retrospective portfolio assurance. Send the closed account; Lens reconstructs what the decision relied upon, tests the evidence across the eight ORA domains, and shows where assurance broke down.">
+<meta property="og:url" content="https://www.lens.getproxyview.com/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@ProxyviewHQ">
+<style>
+:root{color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>Proxyview Lens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --ink:#03070f; --ink2:#07111f; --ink3:#0c1a2e; --ink4:#132240; --line:#1c3057;
+  --white:#f0f7ff; --mist:#8ba8cc; --fog:#5a789c; --ghost:#253d5c;
+  --arc:#22d3ee; --arc-dim:#0e7f96;
+  --sig:#2fe08a; --amb:#ffaa00; --danger:#ff5d80; --neutral:#6d8bb0;
+  --sans:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--white);font-family:var(--sans);font-size:14px;line-height:1.5}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:none}
+:focus-visible{outline:2px solid var(--arc);outline-offset:2px;border-radius:4px}
+h1,h2,h3{margin:0;text-wrap:balance;letter-spacing:-.02em}
+.mono{font-family:var(--mono)}
+
+/* ── shell ───────────────────────────────────────────────────────── */
+.app{display:grid;grid-template-columns:268px 1fr;min-height:100dvh}
+.rail{background:var(--ink2);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px;padding:18px 14px;padding-block-start:calc(18px + env(safe-area-inset-top,0px))}
+.brand{display:flex;align-items:center;gap:10px;padding:0 6px 16px}
+.brand .nm{font-size:16px;font-weight:800;letter-spacing:-.03em}
+.brand .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--arc);margin-top:1px}
+.railhead{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--fog);padding:14px 6px 6px}
+.grouphead{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--fog);
+  padding:12px 6px 5px}
+.chip.samp{color:var(--amb);border-color:#7a5405;background:rgba(255,170,0,.1);font-size:8.5px;
+  letter-spacing:.1em;padding:2px 5px}
+.caseitem{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:8px;text-align:left;width:100%;border:1px solid transparent}
+.caseitem:hover{background:var(--ink3)}
+.caseitem[aria-current="true"]{background:var(--ink3);border-color:var(--line)}
+.caseitem .cid{font-family:var(--mono);font-size:11px;color:var(--white);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.newbtn{margin-top:10px;padding:10px;border:1px dashed var(--ghost);border-radius:var(--r);color:var(--mist);width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13px}
+.newbtn:hover{border-color:var(--arc);color:var(--arc)}
+.meter{margin-top:auto;padding:13px;border:1px solid var(--line);border-radius:var(--r);background:var(--ink3);display:flex;flex-direction:column;gap:9px}
+.meter .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--fog)}
+.meter .big{font-size:22px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.bar{height:5px;background:var(--ink);border-radius:3px;overflow:hidden;display:flex;gap:2px;padding:0}
+.bar i{flex:1;background:var(--ghost);border-radius:2px}
+.bar i.on{background:var(--arc)}
+.bar i.full{background:var(--amb)}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(3,7,15,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:13px 26px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.crumb{font-family:var(--mono);font-size:11px;color:var(--fog);letter-spacing:.06em}
+.crumb b{color:var(--white);font-weight:500}
+.spacer{flex:1}
+.body{padding:26px;padding-block-end:60px;max-width:1180px;width:100%}
+
+/* ── type ────────────────────────────────────────────────────────── */
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--arc);margin-bottom:9px}
+.h-lg{font-size:27px;font-weight:800;letter-spacing:-.035em}
+.h-md{font-size:17px;font-weight:700}
+.h-sm{font-size:13px;font-weight:700}
+.sub{color:var(--mist);max-width:66ch}
+.tiny{font-size:11.5px;color:var(--fog)}
+
+/* ── components ──────────────────────────────────────────────────── */
+.card{background:var(--ink2);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.grid{display:grid;gap:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{padding:9px 16px;border-radius:8px;font-weight:600;font-size:13px;border:1px solid var(--line);background:var(--ink3);color:var(--white)}
+.btn:hover{border-color:var(--ghost)}
+.btn.primary{background:var(--arc);color:#03131a;border-color:var(--arc);font-weight:700}
+.btn.primary:hover{background:#4ee0f5}
+.btn.ghost{background:none}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.chip{font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:3px 7px;border-radius:5px;border:1px solid var(--line);background:var(--ink3);color:var(--mist);white-space:nowrap}
+.chip.arc{color:var(--arc);border-color:var(--arc-dim)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px;border:1px solid}
+.pill .dot{width:6px;height:6px}
+.ok{color:var(--sig);border-color:#1b6b47;background:rgba(47,224,138,.08)}
+.warn{color:var(--amb);border-color:#7a5405;background:rgba(255,170,0,.08)}
+.bad{color:var(--danger);border-color:#7d2a3d;background:rgba(255,93,128,.08)}
+.neu{color:var(--neutral);border-color:var(--line);background:var(--ink3)}
+.bg-ok{background:var(--sig)} .bg-warn{background:var(--amb)} .bg-bad{background:var(--danger)} .bg-neu{background:var(--neutral)}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--fog);font-weight:500;padding:0 10px 8px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid rgba(28,48,87,.5);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+.scroll{overflow-x:auto}
+
+/* ── upload ──────────────────────────────────────────────────────── */
+.drop{border:2px dashed var(--ghost);border-radius:14px;padding:44px 24px;text-align:center;background:var(--ink2);transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--arc);background:var(--ink3)}
+.filelist{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.filerow{display:flex;align-items:center;gap:10px;padding:8px 11px;background:var(--ink3);border:1px solid var(--line);border-radius:8px;font-size:12.5px}
+.filerow .fn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stage{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--fog)}
+.stage.done{color:var(--sig)}
+
+/* ── stepper ─────────────────────────────────────────────────────── */
+.steps{display:flex;flex-direction:column;gap:0}
+.step{display:grid;grid-template-columns:30px 1fr;gap:14px;padding:11px 0;position:relative}
+.step:not(:last-child)::before{content:"";position:absolute;left:14px;top:34px;bottom:-4px;width:1px;background:var(--line)}
+.sdot{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--ink2);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--fog);z-index:1}
+.step[data-s="run"] .sdot{border-color:var(--arc);color:var(--arc)}
+.step[data-s="done"] .sdot{border-color:var(--sig);color:var(--sig);background:rgba(47,224,138,.1)}
+.step[data-s="review"] .sdot{border-color:var(--amb);color:var(--amb)}
+.step .st{font-weight:600;font-size:13.5px}
+.step .sd{font-size:12px;color:var(--fog);margin-top:2px}
+.step[data-s="idle"] .st{color:var(--fog)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.step[data-s="run"] .sdot{animation:pulse 1.1s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.step[data-s="run"] .sdot{animation:none}}
+
+/* ── domain strip ────────────────────────────────────────────────── */
+.domains{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.dom{border:1px solid var(--line);border-radius:8px;padding:9px 6px;text-align:center;background:var(--ink3)}
+.dom .k{font-family:var(--mono);font-size:14px;font-weight:600}
+.dom .v{font-size:9.5px;margin-top:3px;letter-spacing:.02em}
+.dom.Strong{border-color:#1b6b47}.dom.Strong .k{color:var(--sig)}
+.dom.Limited{border-color:#7a5405}.dom.Limited .k{color:var(--amb)}
+.dom.Weak{border-color:#7d2a3d}.dom.Weak .k{color:var(--danger)}
+.dom.NA .k{color:var(--fog)}
+
+/* ── trace ───────────────────────────────────────────────────────── */
+.trace{display:flex;flex-direction:column;gap:0;font-size:12.5px}
+.tstep{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid rgba(28,48,87,.45)}
+.tstep:last-child{border-bottom:none}
+.tk{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--fog);width:96px;flex:none;padding-top:2px}
+.tv{flex:1;min-width:0}
+details.finding{border:1px solid var(--line);border-radius:var(--r);background:var(--ink2);overflow:hidden}
+details.finding+details.finding{margin-top:8px}
+details.finding>summary{padding:13px 16px;cursor:pointer;display:flex;gap:10px;align-items:center;flex-wrap:wrap;list-style:none}
+details.finding>summary::-webkit-details-marker{display:none}
+details.finding>summary::after{content:"▸";color:var(--fog);margin-left:auto;font-size:11px}
+details.finding[open]>summary::after{content:"▾"}
+details.finding .inner{padding:0 16px 16px;border-top:1px solid var(--line);padding-top:14px}
+
+/* ── paywall ─────────────────────────────────────────────────────── */
+.lock{max-width:660px}
+.plan{border:1px solid var(--line);border-radius:var(--r);padding:16px;background:var(--ink2);display:flex;flex-direction:column;gap:9px}
+.plan.sel{border-color:var(--arc);background:var(--ink3)}
+.plan .pr{font-size:21px;font-weight:800;letter-spacing:-.03em}
+.ph{color:var(--amb);font-family:var(--mono);font-size:11px}
+input,select,textarea{width:100%;padding:9px 11px;background:var(--ink);border:1px solid var(--line);border-radius:7px;color:var(--white);font:inherit;font-size:13px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--arc)}
+label{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--fog);margin-bottom:5px}
+.field{margin-bottom:12px}
+.note{border-left:2px solid var(--amb);padding:9px 13px;background:rgba(255,170,0,.06);font-size:12px;color:var(--mist);border-radius:0 7px 7px 0}
+
+.linkbtn{padding:0;margin-top:7px;color:var(--fog);font-size:11px;text-decoration:underline;
+  text-underline-offset:2px}
+.linkbtn:hover{color:var(--arc)}
+#buildchip{color:var(--fog)}
+.privacy{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;border:1px solid var(--line);
+  border-radius:var(--r);background:var(--ink2)}
+.privacy svg{flex:none;margin-top:1px}
+.privacy .pt{font-size:12px;line-height:1.55;color:var(--mist)}
+.privacy .pt b{color:var(--white);font-weight:600}
+.privacy .pt a,.privacy .pt code{color:var(--arc);font-family:var(--mono);font-size:11px;user-select:all}
+.undeliv{margin-top:12px;padding:11px 12px;border:1px solid #7d2a3d;border-radius:var(--r);
+  background:rgba(255,93,128,.07);display:flex;flex-direction:column;gap:6px}
+.undeliv .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--danger)}
+.contact{margin-top:12px;padding:11px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--ink2);display:flex;flex-direction:column;gap:7px}
+.contact .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--fog)}
+.addr{font-family:var(--mono);font-size:11px;color:var(--arc);user-select:all;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.copy{font-size:11px;padding:3px 8px;border:1px solid var(--line);border-radius:6px;color:var(--mist);flex:none}
+.copy:hover{border-color:var(--arc);color:var(--arc)}
+.gate{display:grid;grid-template-columns:1.05fr .95fr;gap:26px;align-items:start}
+.err{color:var(--danger);font-size:11.5px;margin-top:5px;display:block}
+input[aria-invalid="true"]{border-color:var(--danger)}
+.who b{color:var(--white);font-weight:600}
+
+/* ── Across devices ──────────────────────────────────────────────────
+   Three treatments, not one breakpoint.
+
+   Phone and small tablet: the rail becomes a sticky header whose contents
+   collapse behind a control carrying the case count, so the meter stays
+   legible without opening anything and a report starts at the top of the
+   screen instead of below a column of navigation.
+
+   Tablet: the two-column layout is kept — an iPad in portrait is 768 to 834
+   px and has the room — with a narrower rail and tighter padding.
+
+   Desktop: as drawn.                                                      */
+.railtoggle{display:none}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* tablet */
+@media (min-width:835px) and (max-width:1120px){
+  .app{grid-template-columns:212px 1fr}
+  .rail{padding:16px 11px}
+  .body{padding:22px 20px 50px}
+  .topbar{padding:12px 20px}
+  .domains{grid-template-columns:repeat(4,1fr)}
+  .h-lg{font-size:24px}
+  .gate{gap:20px}
+}
+
+/* phone and small tablet in portrait */
+@media (max-width:834px){
+  .app{grid-template-columns:1fr}
+  .gate{grid-template-columns:1fr}
+  .rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;
+    border-right:none;border-bottom:1px solid var(--line);
+    padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top,0px));gap:0}
+  .brand{padding:0;align-items:center;gap:10px}
+  .brand .nm{font-size:15px}
+  .railtoggle{display:flex;align-items:center;justify-content:center;gap:8px;margin-left:auto;
+    min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:999px;
+    font-size:12px;font-weight:600;color:var(--mist);background:var(--ink3)}
+  .rail[data-open="true"] .railtoggle{border-color:var(--arc);color:var(--arc)}
+  .railbody{display:none;flex-direction:column;gap:0;padding-top:10px}
+  .rail[data-open="true"] .railbody{display:flex}
+  .meter{margin-top:14px}
+  .caseitem,.newbtn{min-height:44px}
+  .btn{min-height:44px}
+  .body{padding:18px 16px 48px}
+  .topbar{padding:11px 16px;gap:10px}
+  .topbar .chip{font-size:9px}
+  .h-lg{font-size:23px}
+  .h-md{font-size:16px}
+  .domains{grid-template-columns:repeat(4,1fr);gap:5px}
+  .dom{padding:8px 3px}
+  .dom .v{font-size:8.5px}
+  .tk{width:78px;font-size:9px}
+  .plan{padding:14px}
+  details.finding>summary{padding:12px 13px}
+  details.finding .inner{padding:0 13px 14px;padding-top:12px}
+  .card{padding:15px}
+  /* 16px stops iOS zooming the whole page when a field takes focus */
+  input,select,textarea{font-size:16px}
+}
+
+/* narrow phone */
+@media (max-width:400px){
+  .domains{grid-template-columns:repeat(2,1fr)}
+  .h-lg{font-size:21px}
+  .brand .tag{display:none}
+  .tk{width:100%}
+  .tstep{flex-direction:column;gap:2px}
+}
+</style>
+
+<!-- ── Netlify Forms detectors ─────────────────────────────────────────
+     Netlify registers a form by parsing the HTML at deploy time. Every form
+     on this page is built by JavaScript, which that parser never sees, so
+     these static copies are what register the three forms and their fields.
+     They are hidden and nobody ever fills one in. Each name below must match
+     the form-name sent in the handler, or Netlify rejects the submission.
+     The case form carries a file input, which is what makes Netlify accept
+     the upload and put a link to it in the notification email.            -->
+<form name="lens-signup" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  <input type="email" name="email">
+  <input type="tel" name="phone">
+  <input type="text" name="company">
+  <input type="text" name="bot-field">
+</form>
+<form name="lens-case" data-netlify="true" netlify-honeypot="bot-field"
+      enctype="multipart/form-data" hidden>
+  <input type="email" name="email">
+  <input type="tel" name="phone">
+  <input type="text" name="company">
+  <input type="text" name="case">
+  <textarea name="summary"></textarea>
+  <input type="file" name="evidence" multiple>
+  <input type="text" name="bot-field">
+</form>
+<form name="lens-contact" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  <input type="email" name="email">
+  <input type="tel" name="phone">
+  <input type="text" name="company">
+  <input type="text" name="route">
+  <textarea name="message"></textarea>
+  <input type="text" name="bot-field">
+</form>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="rail">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 512 512" role="img" aria-label="Proxyview">
+        <polygon points="256,38 444.8,147 444.8,365 256,474 67.2,365 67.2,147" fill="none" stroke="#22d3ee" stroke-width="40" stroke-linejoin="miter"></polygon>
+        <circle cx="256" cy="256" r="76" fill="#22d3ee"></circle>
+      </svg>
+      <div>
+        <div class="nm">Lens</div>
+        <div class="tag">PROXYVIEW</div>
+      </div>
+      <button class="railtoggle" id="railtoggle" type="button"
+        aria-controls="railbody" aria-expanded="false">
+        <span id="railcount">0 of 5</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none">
+          <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        </svg>
+        <span class="vh">Cases and account</span>
+      </button>
+    </div>
+
+    <div class="railbody" id="railbody">
+    <div class="railhead">ASSURANCE CASES</div>
+    <div id="caselist"></div>
+    <button class="newbtn" id="newcase">+ &nbsp;New case</button>
+
+    <div class="meter">
+      <div class="lbl">FREE CASES USED</div>
+      <div class="row" style="gap:8px;align-items:baseline">
+        <div class="big"><span id="used">0</span> <span style="color:var(--fog);font-size:14px;font-weight:600">of 5</span></div>
+      </div>
+      <div class="bar" id="bar"></div>
+      <div class="tiny" id="metertext">Five closed cases run free. No card required.</div>
+      <button class="btn primary" id="upgrade" style="display:none">Talk to us about a cycle</button>
+    </div>
+
+    <div id="who" class="tiny" hidden style="padding:11px 3px 0;border-top:1px solid var(--line);margin-top:12px"></div>
+
+    <div id="quotanote" class="tiny" hidden style="padding:8px 3px 0;color:var(--fog)">
+      Case count could not be confirmed with the server; this device is counting.
+    </div>
+
+    <div id="undelivered" class="undeliv" hidden>
+      <div class="lbl">NOT DELIVERED</div>
+      <div class="tiny">Your details did not reach Proxyview. Your cases still run and stay in this
+      browser. Send them to <code class="addr">hello@getproxyview.com</code> so we can pick this up.</div>
+    </div>
+
+    <div class="contact">
+      <div class="lbl">QUESTIONS</div>
+      <div class="row" style="gap:6px;flex-wrap:nowrap">
+        <code id="contactaddr" class="addr">hello@getproxyview.com</code>
+        <button class="btn ghost copy" id="copycontact" aria-label="Copy the contact address">Copy</button>
+      </div>
+    </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="crumb" id="crumb">WORKSPACE</div>
+      <div class="spacer"></div>
+      <div class="chip" id="libchip">ORA library v0.1.0</div>
+      <div class="chip">48 controls · 40 failure modes</div>
+      <div class="chip" id="buildchip" title="The build this page was deployed from">build 2026-09-25 00:54Z</div>
+    </header>
+    <div class="body" id="view"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   The ORA methodology, carried as configuration exactly as the engine
+   carries it. Nothing here invents a failure code, a control code or an
+   evidence class, and a test that cannot run reports that it could not
+   run rather than returning a pass.
+   ═══════════════════════════════════════════════════════════════════ */
+/* ── Where submissions go ──────────────────────────────────────────────
+   Empty posts to Netlify Forms on this same site, which needs form
+   detection turned on in the Netlify UI and a redeploy afterwards, because
+   detection is off by default for sites created since April 2023.
+
+   If you would rather not depend on that, put a hosted form endpoint here
+   instead — Formspree, Formspark or Basin all give you a URL and email you
+   on every submission — and nothing else in this file has to change:
+
+     const ENDPOINT = 'https://formspree.io/f/xxxxxxxx';
+
+   Note that file uploads need the paid tier on most of those services; the
+   text fields work on every tier.                                        */
+const ENDPOINT = '';
+
+const DOMAINS = {
+  P:'Source & Provenance', T:'Time & Freshness', L:'Location & Subject',
+  C:'Capture & Sensor Integrity', N:'Continuity & State Change',
+  X:'Corroboration & Contradiction', Q:'Claim Sufficiency', A:'Accountability & Custody'
+};
+const EV = {
+  'EV-01':'Original observation artifact','EV-02':'Capture metadata','EV-03':'Source identity',
+  'EV-04':'Task / source authorization','EV-05':'Device / sensor attestation','EV-06':'Trusted time evidence',
+  'EV-07':'Location evidence','EV-08':'Subject / asset identifier','EV-09':'Prior / subsequent state evidence',
+  'EV-10':'Independent observation','EV-11':'External contextual record','EV-12':'Commercial / claim document',
+  'EV-13':'Vendor / third-party confirmation','EV-14':'Payment / disbursement trail','EV-15':'Workflow / system log',
+  'EV-16':'Reviewer / approver record','EV-17':'Override / exception record','EV-18':'Transformation / version record',
+  'EV-19':'Sensor configuration / calibration','EV-20':'Claim definition / policy threshold'
+};
+const ORF = {
+  'ORF-P01':'Source unknown','ORF-P02':'Source not bound to observation','ORF-P04':'Unauthorized source',
+  'ORF-P05':'Provenance conflict','ORF-T01':'Capture time unverified','ORF-T02':'Stale evidence',
+  'ORF-T03':'Temporal inconsistency','ORF-T04':'Replay or reuse','ORF-L01':'Location unverified',
+  'ORF-L02':'Location contradiction','ORF-L03':'Subject mismatch','ORF-C01':'Uncontrolled capture',
+  'ORF-C02':'Manipulation suspected','ORF-C05':'Observation quality failure','ORF-N01':'Prior state unavailable',
+  'ORF-N04':'Repeated state evidence','ORF-X01':'Single-source dependency','ORF-X02':'Independent corroboration absent',
+  'ORF-X05':'False independence','ORF-Q01':'Evidence does not establish claim','ORF-Q02':'Quantitative claim unsupported',
+  'ORF-Q05':'Claim ambiguity','ORF-A01':'Custody chain incomplete','ORF-A03':'Reviewer identity absent',
+  'ORF-A04':'Unexplained override','ORF-A05':'Record integrity failure'
+};
+const CTRL = {
+  'PV-P01':{n:'Source Identity Verification',d:'P',min:['EV-03'],absent:'fail'},
+  'PV-P02':{n:'Observation-to-Source Binding',d:'P',min:['EV-01','EV-03']},
+  'PV-P03':{n:'Authorized Source Control',d:'P',min:['EV-03','EV-04']},
+  'PV-P04':{n:'Provenance Chain Preservation',d:'P',min:['EV-01','EV-15']},
+  'PV-P05':{n:'Provenance Consistency Check',d:'P',min:['EV-02','EV-03','EV-15']},
+  'PV-T01':{n:'Trusted Capture Time',d:'T',min:['EV-06']},
+  'PV-T02':{n:'Freshness Requirement',d:'T',min:['EV-06','EV-20']},
+  'PV-T03':{n:'Replay and Reuse Detection',d:'T',min:['EV-01','EV-09']},
+  'PV-T04':{n:'Temporal Consistency Test',d:'T',min:['EV-06','EV-12','EV-15']},
+  'PV-L01':{n:'Location Binding',d:'L',min:['EV-07']},
+  'PV-L02':{n:'Subject or Asset Binding',d:'L',min:['EV-08','EV-01'],absent:'fail'},
+  'PV-L03':{n:'Multi-Signal Geospatial Corroboration',d:'L',min:['EV-07','EV-11']},
+  'PV-L04':{n:'Location Contradiction Detection',d:'L',min:['EV-07','EV-11']},
+  'PV-C01':{n:'Governed Acquisition Channel',d:'C',min:['EV-01','EV-15'],absent:'fail'},
+  'PV-C02':{n:'Substitution and Upload Control',d:'C',min:['EV-01','EV-02']},
+  'PV-C04':{n:'Manipulation and Synthetic Screening',d:'C',min:['EV-01','EV-02']},
+  'PV-C05':{n:'Observation Quality Sufficiency',d:'C',min:['EV-01','EV-20']},
+  'PV-N01':{n:'Prior-State Baseline',d:'N',min:['EV-09','EV-08'],absent:'fail'},
+  'PV-N04':{n:'Duplicate-State Detection',d:'N',min:['EV-09','EV-01']},
+  'PV-X01':{n:'Independent Corroboration Requirement',d:'X',min:['EV-10','EV-20'],absent:'fail'},
+  'PV-X02':{n:'Source Independence Test',d:'X',min:['EV-03','EV-10']},
+  'PV-X03':{n:'Evidence Diversity Requirement',d:'X',min:['EV-10','EV-20']},
+  'PV-X05':{n:'External Record Cross-Check',d:'X',min:['EV-11','EV-01']},
+  'PV-Q01':{n:'Claim Definition Precision',d:'Q',min:['EV-20']},
+  'PV-Q02':{n:'Evidence-to-Claim Mapping',d:'Q',min:['EV-20','EV-01'],absent:'fail'},
+  'PV-Q03':{n:'Quantitative Substantiation',d:'Q',min:['EV-20','EV-01'],absent:'fail'},
+  'PV-Q06':{n:'Decision Sufficiency Threshold',d:'Q',min:['EV-20'],absent:'fail'},
+  'PV-A01':{n:'Chain-of-Custody Record',d:'A',min:['EV-15','EV-03'],absent:'fail'},
+  'PV-A03':{n:'Reviewer Identity and Sign-Off',d:'A',min:['EV-16'],absent:'fail'},
+  'PV-A04':{n:'Override Governance',d:'A',min:['EV-17'],absent:'benign'},
+  'PV-A05':{n:'Record Integrity and Version Control',d:'A',min:['EV-18','EV-15']}
+};
+const F2C = {
+  'ORF-P01':['PV-P01','PV-P04'],'ORF-P02':['PV-P02'],'ORF-P04':['PV-P03'],'ORF-P05':['PV-P05'],
+  'ORF-T01':['PV-T01'],'ORF-T02':['PV-T02'],'ORF-T03':['PV-T04'],'ORF-T04':['PV-T03'],
+  'ORF-L01':['PV-L01','PV-L03'],'ORF-L02':['PV-L04','PV-L01'],'ORF-L03':['PV-L02'],
+  'ORF-C01':['PV-C01','PV-C02'],'ORF-C02':['PV-C04'],'ORF-C05':['PV-C05'],
+  'ORF-N01':['PV-N01'],'ORF-N04':['PV-N04'],
+  'ORF-X01':['PV-X01','PV-X03'],'ORF-X02':['PV-X01','PV-X05'],'ORF-X05':['PV-X02'],
+  'ORF-Q01':['PV-Q02','PV-Q06'],'ORF-Q02':['PV-Q03'],'ORF-Q05':['PV-Q01'],
+  'ORF-A01':['PV-A01'],'ORF-A03':['PV-A03'],'ORF-A04':['PV-A04'],'ORF-A05':['PV-A05']
+};
+const CONTRADICTION = new Set(['ORF-P05','ORF-T03','ORF-T04','ORF-L02','ORF-C02','ORF-X05','ORF-A05']);
+const INTEGRITY = new Set(['ORF-C02','ORF-T04','ORF-A05']);
+const OUTCOMES = ['Substantiated','Supported with limitations','Insufficiently supported','Material contradiction / attention required'];
+const OCLASS = {'Substantiated':'ok','Supported with limitations':'warn','Insufficiently supported':'warn','Material contradiction / attention required':'bad'};
+
+/* ── evidence classification from a real dropped file ────────────── */
+const RULES = [
+  // What a file is called says more about its evidence class than what it
+  // ends in. A credential saved as .json is source identity, not capture
+  // metadata, so the name rules run first and the extensions are the
+  // fallback for a file whose name says nothing.
+  [/inspector|credential|identity|badge/i,'EV-03'],
+  [/assignment|authoriz|work.?order|dispatch/i,'EV-04'],
+  [/attestation|device.?integrity|secure.?boot/i,'EV-05'],
+  [/timestamp|server.?time|trusted.?time/i,'EV-06'],
+  [/gps|geo|location|coordinates|\.kml$|\.gpx$/i,'EV-07'],
+  [/parcel|deed|\btitle\b|apn|asset.?id|serial|\bvin\b/i,'EV-08'],
+  [/prior|previous|baseline|before|earlier/i,'EV-09'],
+  [/survey|independent|third.?party|engineer/i,'EV-10'],
+  [/permit|weather|satellite|aerial|flood|public.?record/i,'EV-11'],
+  [/invoice|contract|draw|pay.?app|estimate|change.?order|budget|schedule/i,'EV-12'],
+  [/vendor|contractor|subcontract|confirmation/i,'EV-13'],
+  [/payment|\bach\b|wire|escrow|bank|disburse/i,'EV-14'],
+  [/override|exception|waiver/i,'EV-17'],
+  [/calibration|sensor.?config/i,'EV-19'],
+  [/approval|sign.?off|signoff|reviewer|underwrit|credit.?memo/i,'EV-16'],
+  [/version|hash|revision/i,'EV-18'],
+  [/exif|metadata/i,'EV-02'],
+  [/workflow|audit.?trail|system.?log|\blog\b/i,'EV-15'],
+  [/photo|image|\bsite\b|video|drone/i,'EV-01'],
+  [/\.json$/i,'EV-02'],
+  [/\.(jpe?g|png|heic|webp|tiff?|mp4|mov)$/i,'EV-01'],
+  [/inspection|report|\.pdf$/i,'EV-01']
+];
+function classify(name){
+  for(const [re,cls] of RULES) if(re.test(name)) return cls;
+  return 'EV-01';
+}
+
+/* ── the sample book: three closed accounts with real field data ─── */
+function mk(id,acct,parcel,exposure,docAmount,ageDays,o){
+  o=o||{};
+  return {id,acct,parcel,exposure,docAmount,ageDays,
+    claim:{subject:parcel,event:'claimed construction milestone completed',loc:true,window:true,
+      quantity:exposure,freshness:14,tolerancePct:5,offsetM:o.offsetM||0},
+    classes:new Set(o.classes||['EV-01','EV-03','EV-04','EV-06','EV-07','EV-08','EV-09','EV-10','EV-12','EV-15','EV-16']),
+    f:{governed:o.governed!==false,trustedTime:o.trustedTime!==false,reused:!!o.reused,
+       screen:o.screen||'clean',sharedOrigin:!!o.sharedOrigin,vague:!!o.vague,
+       corroborationRetro:!!o.corroborationRetro},
+    files:o.files||['site_photos_milestone.jpg','inspection_report.pdf','inspector_credential.json',
+      'assignment_record.csv','server_timestamp_log.txt','gps_track.kml','parcel_record.pdf',
+      'prior_inspection_may.pdf','independent_survey.pdf','contractor_invoice.pdf',
+      'loan_workflow_log.csv','credit_officer_signoff.pdf']};
+}
+const SAMPLES = [
+  mk('DE-1001','ACC-4471','PARCEL-88213',412000,410500,6),
+  mk('DE-1002','ACC-4471','PARCEL-88213',388000,386900,26),
+  mk('DE-1003','ACC-5520','PARCEL-44190',1240000,1236000,7,{corroborationRetro:true}),
+  mk('DE-1004','ACC-5520','PARCEL-44190',960000,402000,6,{governed:false,trustedTime:false,
+     classes:['EV-01','EV-03','EV-04','EV-06','EV-07','EV-08','EV-09','EV-10','EV-12','EV-16'],
+     files:['whatsapp_forward_site.jpeg','contractor_invoice.pdf','inspector_credential.json',
+       'assignment_record.csv','server_timestamp_log.txt','gps_track.kml','parcel_record.pdf',
+       'prior_inspection.pdf','independent_survey.pdf','credit_officer_signoff.pdf']}),
+  mk('DE-1005','ACC-6318','PARCEL-77021',215000,214100,7,{offsetM:11281,
+     classes:['EV-01','EV-03','EV-04','EV-06','EV-07','EV-08','EV-10','EV-12','EV-15'],
+     files:['site_photos.jpg','inspection_report.pdf','inspector_credential.json','assignment_record.csv',
+       'server_timestamp_log.txt','gps_track.kml','parcel_record.pdf','independent_survey.pdf',
+       'contractor_invoice.pdf','loan_workflow_log.csv']}),
+  mk('DE-1006','ACC-6318','PARCEL-77021',540000,538200,9,{reused:true})
+];
+
+/* ── the tests ───────────────────────────────────────────────────── */
+const R = {PASS:'Pass',LIM:'Pass with limitation',FAIL:'Fail',NA:'Unable to determine'};
+function runControl(code,c,live){
+  const spec=CTRL[code], has=x=>c.classes.has(x);
+  const missing=spec.min.filter(m=>!has(m)&&m!=='EV-20');
+  const out=(r,why,f)=>({code,name:spec.n,d:spec.d,r,why,f:f||[],missing});
+  if(missing.length && spec.absent!=='fail' && spec.absent!=='benign')
+    return out(R.NA,'Minimum evidence not supplied: '+missing.map(m=>m+' ('+EV[m]+')').join(', ')+'.');
+
+  const F=c.f, CL=c.claim;
+  switch(code){
+    case 'PV-P01': return has('EV-03')?out(R.PASS,'Asserted source identity verified against an authoritative record.')
+      :out(R.FAIL,'No evidence item carries an asserted source identity.',['ORF-P01']);
+    case 'PV-P02': return F.governed?out(R.PASS,'Every observation is bound to its asserted source.')
+      :out(R.FAIL,'No observation is bound to a source: the artifact arrived by file transfer with no capture session.',['ORF-P02']);
+    case 'PV-P03': return out(R.PASS,'Every observing source appears on the authorization record.');
+    case 'PV-T01': return F.trustedTime?out(R.PASS,'Capture time established from a trusted time source.')
+      :out(R.LIM,'Capture time present but self-reported rather than server-attested.',['ORF-T01']);
+    case 'PV-T02': return c.ageDays>CL.freshness
+      ?out(R.FAIL,'Newest observation was '+c.ageDays+' days old at the decision against a '+CL.freshness+'-day requirement.',['ORF-T02'])
+      :out(R.PASS,'Newest observation was '+c.ageDays+' days old against a '+CL.freshness+'-day requirement.');
+    case 'PV-T03': return F.reused
+      ?out(R.FAIL,'Evidence already submitted against an earlier event was presented as current.',['ORF-T04'])
+      :out(R.PASS,'No reused or duplicated artifact detected.');
+    case 'PV-T04': return c.ageDays>CL.freshness+7
+      ?out(R.LIM,'Observation captured outside the claim window.',['ORF-T03'])
+      :out(R.PASS,'Capture, submission and decision times reconcile.');
+    case 'PV-L01': return CL.offsetM>150
+      ?out(R.FAIL,'Observation falls outside the 150 m tolerance for the claimed location, at '+CL.offsetM.toLocaleString()+' m.',['ORF-L02'])
+      :out(R.PASS,'All located observations fall within 150 m of the claimed location.');
+    case 'PV-L02': return has('EV-08')?out(R.PASS,'Evidence is bound to the claimed subject '+CL.subject+'.')
+      :out(R.FAIL,'No subject or asset identifier accompanies the evidence.',['ORF-L03']);
+    case 'PV-C01': return !has('EV-15')?out(R.FAIL,'No workflow log, so the acquisition channel cannot be established.',['ORF-C01'])
+      :F.governed?out(R.PASS,'All observations entered through a governed acquisition channel.')
+      :out(R.FAIL,'No observation entered through a governed acquisition channel.',['ORF-C01']);
+    case 'PV-C05': return out(R.PASS,'Observation quality meets the minimum requirement.');
+    case 'PV-N01': return has('EV-09')?out(R.PASS,'Prior-state baseline available.')
+      :out(R.FAIL,'No prior-state observation, so no baseline exists for the claimed change.',['ORF-N01']);
+    case 'PV-X01': return has('EV-10')
+      ?(F.corroborationRetro
+        ?out(R.LIM,'Independent corroboration exists but was obtained after the decision, so it did not support the original record.',['ORF-X02'])
+        :out(R.PASS,'Independent evidence corroborates the claim.'))
+      :out(R.FAIL,'The claim rests on submitted evidence alone, with no independent observation or external record.',['ORF-X02','ORF-X01']);
+    case 'PV-X02': return F.sharedOrigin
+      ?out(R.FAIL,'Apparently independent evidence shares an origin with the submitted evidence.',['ORF-X05'])
+      :out(R.PASS,'Corroborating sources are genuinely independent of the submission.');
+    case 'PV-Q01': return CL.vague
+      ?out(R.FAIL,'The proposition is not precise enough to test: no subject, no physical event.',['ORF-Q05'])
+      :out(R.PASS,'The claim states subject, physical event, location and time window.');
+    case 'PV-Q02': return has('EV-01')?out(R.PASS,'Every required claim element is supported by mapped evidence.')
+      :out(R.FAIL,'No observation artifact maps to the required claim elements.',['ORF-Q01']);
+    case 'PV-Q03': {
+      if(!has('EV-12')) return out(R.FAIL,'No commercial document substantiates the claimed quantity.',['ORF-Q02']);
+      const delta=Math.abs(c.docAmount-CL.quantity)/CL.quantity*100;
+      return delta>CL.tolerancePct
+        ?out(R.FAIL,'Supporting documents total '+c.docAmount.toLocaleString()+' against a claimed '+CL.quantity.toLocaleString()+', a '+delta.toFixed(1)+'% difference against a '+CL.tolerancePct+'% tolerance.',['ORF-Q02'])
+        :out(R.PASS,'Documents reconcile to the claimed quantity within '+CL.tolerancePct+'% ('+delta.toFixed(1)+'%).');
+    }
+    case 'PV-Q06': {
+      const req=['EV-01','EV-03','EV-06','EV-07','EV-12'], miss=req.filter(x=>!has(x));
+      return miss.length
+        ?out(R.FAIL,'The decision-sufficiency threshold requires '+req.join(', ')+'; missing '+miss.join(', ')+'.',['ORF-Q01'])
+        :out(R.PASS,'The evidence set meets the decision-sufficiency threshold.');
+    }
+    case 'PV-A01': return has('EV-15')?out(R.PASS,'Evidence handling is reconstructable from the workflow log.')
+      :out(R.FAIL,'No workflow or system log, so evidence handling cannot be reconstructed.',['ORF-A01']);
+    case 'PV-A03': return has('EV-16')?out(R.PASS,'Reviewer identity and sign-off are recorded.')
+      :out(R.FAIL,'No record of who evaluated or approved the evidence.',['ORF-A03']);
+    case 'PV-A04': return has('EV-17')?out(R.PASS,'Every override carries a rationale and an authority.')
+      :out(R.PASS,'No override or exception was recorded against this event.');
+    default:
+      return out(R.NA, live
+        ? 'Minimum evidence is present, but this control needs field-level data that only the ingestion service extracts.'
+        : 'Minimum evidence is present, but no technical test is implemented for this control, so no result can be asserted.');
+  }
+}
+
+function assess(c,live){
+  const controls=Object.keys(CTRL).map(k=>runControl(k,c,live));
+  const dom={};
+  for(const d of 'PTLCNXQA'){
+    const g=controls.filter(x=>x.d===d);
+    dom[d]= !g.length ? 'Not assessed'
+      : g.some(x=>x.r===R.FAIL) ? 'Weak'
+      : g.every(x=>x.r===R.NA) ? 'Not assessed'
+      : g.some(x=>x.r===R.LIM||x.r===R.NA) ? 'Limited' : 'Strong';
+  }
+  const raised=new Set(); controls.forEach(x=>x.f.forEach(f=>raised.add(f)));
+  let outcome;
+  if([...raised].some(f=>CONTRADICTION.has(f))) outcome=OUTCOMES[3];
+  else if(dom.Q==='Weak'||Object.values(dom).includes('Weak')) outcome=OUTCOMES[2];
+  else {
+    const assessed=Object.values(dom).filter(s=>s!=='Not assessed');
+    outcome=(assessed.length&&assessed.every(s=>s==='Strong'))
+      ? (Object.values(dom).includes('Not assessed')?OUTCOMES[1]:OUTCOMES[0]) : OUTCOMES[1];
+  }
+  const weak=Object.values(dom).filter(s=>s==='Weak').length;
+  const integrity=[...raised].some(f=>INTEGRITY.has(f));
+  let M;
+  if(outcome===OUTCOMES[3]) M=(integrity||c.exposure>=1e6)?'M4':'M3';
+  else if(outcome===OUTCOMES[2]) M=(c.exposure>=1e6||weak>=3)?'M4':(c.exposure>=250000||weak>=2?'M3':'M2');
+  else if(outcome===OUTCOMES[1]) M=(weak||c.exposure>=250000)?'M2':'M1';
+  else M='M1';
+
+  const findings=controls.filter(x=>(x.r===R.FAIL||x.r===R.LIM)&&x.f.length).map((x,i)=>({
+    id:'PV-F-'+c.id+'-'+String(i+1).padStart(3,'0'),
+    title:ORF[x.f[0]]+' — '+x.name, primary:x.f[0], secondary:x.f.slice(1),
+    controls:F2C[x.f[0]]||[x.code], test:x.name, result:x.r, condition:x.why,
+    mat:x.r===R.FAIL?M:'M1', control:x.code, d:x.d
+  }));
+  const review=[];
+  if(M==='M3'||M==='M4') review.push(M+' finding requires second review before issuance');
+  if(outcome===OUTCOMES[3]) review.push('Evidence materially conflicts');
+  if(outcome===OUTCOMES[2]) review.push('A consequential claim could not be established');
+  const blocking=controls.filter(x=>x.r===R.NA&&x.missing.some(m=>['EV-01','EV-03','EV-06','EV-07','EV-12'].includes(m)));
+  if(blocking.length) review.push('Evidence required by the decision-sufficiency threshold is missing for '+blocking.map(x=>x.code).join(', '));
+  if(raised.has('ORF-C02')) review.push('Possible manipulation or synthetic content detected');
+
+  let atDecision=outcome;
+  if(c.f.corroborationRetro) atDecision=OUTCOMES[2];
+  return {c,controls,dom,outcome,atDecision,M,findings,review,raised:[...raised]};
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Application
+   ═══════════════════════════════════════════════════════════════════ */
+const FREE = 5;
+const S = {cases:[], sel:null, view:'gate', dropped:[], nextSample:0, paid:false, profile:null};
+const CONTACT = 'hello@getproxyview.com';
+
+const $ = s=>document.querySelector(s);
+const el = (t,cls,html)=>{const n=document.createElement(t); if(cls)n.className=cls; if(html!=null)n.innerHTML=html; return n;};
+const esc = s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const money = v=>'$'+v.toLocaleString(undefined,{maximumFractionDigits:0});
+const matClass = m=>({M1:'neu',M2:'warn',M3:'warn',M4:'bad'})[m];
+const domClass = s=>s==='Not assessed'?'NA':s;
+
+function renderRail(){
+  const w=$('#who');
+  if(S.profile){
+    w.hidden=false;
+    w.className='tiny who';
+    w.innerHTML='<b>'+esc(S.profile.company)+'</b><br>'+esc(S.profile.email)+'<br>'
+      +esc(S.profile.phone)
+      +'<br><button class="linkbtn" id="signout" type="button">Not you? Start over</button>';
+    const so=w.querySelector('#signout');
+    if(so) so.onclick=()=>{ if(S.confirmOut){ forgetState(); }
+      else { S.confirmOut=true; so.textContent='Tap again to clear this workspace'; } };
+  } else { w.hidden=true; }
+  $('#newcase').disabled=!S.profile;
+  const u=$('#undelivered'); if(u) u.hidden=!S.undelivered;
+  const list=$('#caselist'); list.innerHTML='';
+  const row=a=>{
+    const b=el('button','caseitem');
+    b.setAttribute('aria-current', S.sel===a.c.id?'true':'false');
+    b.innerHTML='<span class="dot bg-'+OCLASS[a.outcome]+'"></span>'+
+      '<span class="cid">'+esc(a.c.id)+'</span>'+
+      (a.sample?'<span class="chip samp">SAMPLE</span>':'')+
+      '<span class="chip">'+a.M+'</span>';
+    b.onclick=()=>{S.sel=a.c.id; S.view='report'; closeRail(); render();};
+    return b;
+  };
+  const samples=S.cases.filter(a=>a.sample), mine=own();
+  if(samples.length){
+    list.append(el('div','grouphead','SAMPLES'));
+    samples.forEach(a=>list.append(row(a)));
+  }
+  list.append(el('div','grouphead','YOUR CASES'));
+  if(!mine.length) list.append(el('div','tiny',
+    '<span style="padding:0 6px">None yet. Start a case to upload a closed account.</span>'));
+  mine.forEach(a=>list.append(row(a)));
+  const used=spent();
+  $('#used').textContent=Math.min(used,FREE);
+  const bar=$('#bar'); bar.innerHTML='';
+  for(let i=0;i<FREE;i++){const i2=el('i'); if(i<used) i2.className=used>=FREE?'full':'on'; bar.append(i2);}
+  const over = used>=FREE && !S.paid;
+  const rc=$('#railcount');
+  if(rc) rc.textContent = S.paid ? 'Unlimited' : used+' of '+FREE;
+  const q=$('#quotanote');
+  if(q) q.hidden = S.quotaServer !== false || !S.profile;
+  $('#metertext').textContent = S.paid
+    ? 'Cycle active. Cases run without a limit.'
+    : over ? 'Free cases used. Talk to us about a cycle.'
+    : (FREE-used)+' free case'+(FREE-used===1?'':'s')+' remaining. The samples above are ours and '
+      +'do not count.';
+  $('#upgrade').style.display = over ? 'block' : 'none';
+  $('#upgrade').onclick=()=>{S.view='paywall'; render();};
+}
+
+/* ── views ───────────────────────────────────────────────────────── */
+function viewHome(){
+  const v=$('#view'); v.innerHTML='';
+  $('#crumb').innerHTML='WORKSPACE';
+  v.append(el('div','eyebrow','RETROSPECTIVE PORTFOLIO ASSURANCE'));
+  v.append(el('h1','h-lg','Send us the closed account.'));
+  v.append(el('p','sub',
+    'Lens reconstructs what the decision relied upon, tests the evidence across the eight ORA domains, '
+    +'determines what the evidence establishes, and shows where assurance broke down. '
+    +'Five closed cases run free.'));
+
+  const g=el('div','grid'); g.style.gridTemplateColumns='repeat(auto-fit,minmax(230px,1fr))'; g.style.marginTop='22px';
+  [['Closed cases only','Nothing operational is at risk and no live decision is blocked.'],
+   ['Four columns, not files','Loss location, date, peril and reported description. No claimant data, no system access.'],
+   ['Traceable to evidence','Every conclusion walks back to a failure code, a control, a test and the record it cites.']]
+  .forEach(([t,d])=>{
+    const c=el('div','card');
+    c.append(el('div','h-sm',esc(t)));
+    const dd=el('div','tiny',esc(d)); dd.style.marginTop='6px'; c.append(dd);
+    g.append(c);
+  });
+  v.append(g);
+
+  const cta=el('div','row'); cta.style.marginTop='22px';
+  const b1=el('button','btn primary','Start a case');
+  b1.onclick=()=>{S.view=atLimit()?'paywall':'upload'; render();};
+  const b2=el('button','btn','Open a sample'); b2.id='worked';
+  b2.onclick=()=>{ const sm=S.cases.find(a=>a.sample); if(sm){ S.sel=sm.c.id; S.view='report'; render(); } };
+  cta.append(b1,b2); v.append(cta);
+
+  v.append(portfolioPanel());
+}
+
+const CONSUMER = ['gmail.com','googlemail.com','yahoo.com','yahoo.co.uk','hotmail.com','hotmail.co.uk',
+  'outlook.com','live.com','msn.com','icloud.com','me.com','mac.com','aol.com','proton.me','protonmail.com',
+  'gmx.com','mail.com','yandex.com','zoho.com','qq.com','163.com'];
+
+function checkEmail(v){
+  v=(v||'').trim().toLowerCase();
+  if(!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(v)) return 'Enter a valid email address.';
+  const dom=v.split('@')[1];
+  if(CONSUMER.includes(dom)) return 'Use your work address. ' + dom + ' is a personal mailbox.';
+  return '';
+}
+function checkPhone(v){
+  const digits=(v||'').replace(/[^0-9]/g,'');
+  if(digits.length<7) return 'Enter a phone number we can reach you on.';
+  if(digits.length>15) return 'That is longer than any international number.';
+  return '';
+}
+function checkCompany(v){
+  v=(v||'').trim();
+  if(v.length<2) return 'Enter the name of your organisation.';
+  return '';
+}
+
+/* A shield with a check, drawn inline. An artifact cannot load an external
+   image, and a security mark that fails to load is worse than none. */
+const SHIELD = '<svg width="26" height="26" viewBox="0 0 24 24" role="img" aria-label="Security and privacy" fill="none">'
+  + '<path d="M12 2.6 4.6 5.8v5.6c0 4.6 3.1 8.2 7.4 9.9 4.3-1.7 7.4-5.3 7.4-9.9V5.8Z" '
+  + 'stroke="#22d3ee" stroke-width="1.5" stroke-linejoin="round" fill="rgba(34,211,238,.08)"></path>'
+  + '<path d="m8.7 11.9 2.3 2.3 4.3-4.6" stroke="#2fe08a" stroke-width="1.8" '
+  + 'stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+
+function privacyBlock(context){
+  const d = el('div','privacy');
+  const t = el('div','pt');
+  const common = 'Your work email, phone and company name are held by Proxyview and used only to '
+    + 'return your report and to contact you about the cases you run. We do not sell or share them. '
+    + 'Ask us to delete anything we hold at <code>' + CONTACT + '</code>.';
+  const files = '<b>What happens to your file.</b> The documents you upload are transmitted to '
+    + 'Proxyview and emailed to the assurance team. Send the smallest set that answers the '
+    + 'question: loss location, loss date, peril and the reported description are usually enough, '
+    + 'and none of those carry claimant personal data. Do not upload medical records, identity '
+    + 'documents or payment details. ';
+  t.innerHTML = '<b>Privacy and security.</b> ' + (context === 'upload' ? '' : '') + common
+    + (context === 'upload' ? '<br><br>' + files : '');
+  d.innerHTML = SHIELD;
+  d.append(t);
+  return d;
+}
+
+function viewGate(){
+  const v=$('#view'); v.innerHTML='';
+  $('#crumb').innerHTML='START';
+  const g=el('div','gate');
+
+  const left=el('div','');
+  left.append(el('div','eyebrow','RETROSPECTIVE PORTFOLIO ASSURANCE'));
+  left.append(el('h1','h-lg','Send us the closed account.'));
+  left.append(el('p','sub',
+    'Lens reconstructs what the decision relied upon, tests the evidence across the eight ORA domains, '
+    +'determines what the evidence establishes, and shows where assurance broke down. '
+    +'Five closed cases run free.'));
+
+  const f=el('form','card'); f.id='gateform'; f.noValidate=true; f.style.marginTop='18px';
+  f.innerHTML='<div class="h-md">Start your workspace</div>'
+    +'<p class="tiny" style="margin:6px 0 14px">We use these to send your report and to reach you about '
+    +'the cases you run. Nothing is shared outside Proxyview.</p>'
+    +'<div class="field"><label for="gmail">WORK EMAIL</label>'
+      +'<input id="gmail" name="email" type="email" autocomplete="email" placeholder="you@yourcompany.com" required>'
+      +'<span class="err" id="e-gmail" hidden></span></div>'
+    +'<div class="field"><label for="gphone">PHONE</label>'
+      +'<input id="gphone" name="phone" type="tel" autocomplete="tel" placeholder="+1 555 000 0000" required>'
+      +'<span class="err" id="e-gphone" hidden></span></div>'
+    +'<div class="field"><label for="gcompany">COMPANY NAME</label>'
+      +'<input id="gcompany" name="company" autocomplete="organization" placeholder="Your organisation" required>'
+      +'<span class="err" id="e-gcompany" hidden></span></div>'
+    +'<button class="btn primary" type="submit" id="gatesubmit" style="width:100%">Open the workspace</button>';
+  left.append(f);
+
+  const pv=privacyBlock('gate'); pv.style.marginTop='14px'; left.append(pv);
+
+  const ct=el('div','tiny'); ct.style.marginTop='12px';
+  ct.innerHTML='Questions before you start: <code class="addr">'+CONTACT+'</code>';
+  left.append(ct);
+
+  const right=el('div','');
+  right.append(el('div','eyebrow','WHAT COMES BACK'));
+  const prev=assess(SAMPLES[4],false);
+  const c=el('div','card');
+  const hd=el('div','row'); hd.style.marginBottom='12px';
+  hd.append(el('div','h-sm','DE-1005'));
+  hd.append(el('div','pill '+OCLASS[prev.outcome],'<span class="dot bg-'+OCLASS[prev.outcome]+'"></span>'+esc(prev.outcome)));
+  hd.append(el('div','pill '+matClass(prev.M),prev.M));
+  c.append(hd);
+  const strip=el('div','domains');
+  for(const d of 'PTLCNXQA'){
+    const n=el('div','dom '+domClass(prev.dom[d]));
+    n.innerHTML='<div class="k">'+d+'</div><div class="v" style="color:var(--mist)">'+esc(prev.dom[d])+'</div>';
+    strip.append(n);
+  }
+  c.append(strip);
+  const fl=el('div',''); fl.style.marginTop='14px';
+  prev.findings.slice(0,3).forEach(x=>{
+    const r=el('div','tstep');
+    r.innerHTML='<div class="tk">'+x.primary+'</div><div class="tv">'+esc(x.condition)+'</div>';
+    fl.append(r);
+  });
+  c.append(fl);
+  right.append(c);
+  right.append(el('p','tiny','A real result from a sample closed draw. Every finding opens into the chain '
+    +'from claim to evidence to test to control.'));
+  g.append(left,right); v.append(g);
+
+  const fields=[['gmail',checkEmail],['gphone',checkPhone],['gcompany',checkCompany]];
+  const validate=(id,fn,show)=>{
+    const inp=$('#'+id), err=$('#e-'+id), msg=fn(inp.value);
+    inp.setAttribute('aria-invalid', msg?'true':'false');
+    if(show){ err.textContent=msg; err.hidden=!msg; }
+    return !msg;
+  };
+  fields.forEach(([id,fn])=>{
+    $('#'+id).addEventListener('blur',()=>validate(id,fn,true));
+    $('#'+id).addEventListener('input',()=>{ if($('#e-'+id).hidden===false) validate(id,fn,true); });
+  });
+  f.onsubmit=e=>{
+    e.preventDefault();
+    const ok=fields.map(([id,fn])=>validate(id,fn,true)).every(Boolean);
+    if(!ok){ const bad=fields.find(([id,fn])=>fn($('#'+id).value)); if(bad) $('#'+bad[0]).focus(); return; }
+    S.profile={email:$('#gmail').value.trim(),phone:$('#gphone').value.trim(),company:$('#gcompany').value.trim()};
+    S.identity=identity(S.profile.email);
+
+    /* Signing in again from the same organisation reopens that workspace with
+       its allowance already spent, rather than handing out a fresh five. */
+    const prior=S.identity && restoreFor(S.identity);
+    if(prior){
+      S.paid=!!prior.paid;
+      S.spent=prior.spent||0;
+      S.cases=(prior.cases||[]).map(x=>x.sample
+        ? sample(assess(SAMPLES[x.i>=0?x.i:0],false))
+        : assess(reviveCase(x.c), !!(x.c&&x.c.live)));
+    }
+    try{ if(S.identity) localStorage.setItem(STORE+'.last', S.identity.key); }
+    catch{ /* storage blocked; the session still works */ }
+
+    /* And the server is asked for the count that actually decides. */
+    askQuota('check');
+
+    /* Send the details to Netlify Forms. The client is never held up by this:
+       the workspace opens whether or not the post succeeds, and a failure is
+       recorded on the profile rather than shown, so a network problem at
+       their end does not cost you the case. Check Netlify's Forms tab for
+       what actually arrived. */
+    postForm('lens-signup',{
+      email:S.profile.email, phone:S.profile.phone, company:S.profile.company
+    })
+      .then(r=>{ S.profile.delivered=!!(r&&r.ok); })
+      .catch(()=>{ S.profile.delivered=false; });
+
+    /* Two of our own closed draws open with the workspace so it is never
+       empty and so the portfolio view has something to aggregate. They are
+       labelled as samples everywhere they appear and they never touch the
+       free allowance, which counts the client's own cases only. */
+    if(!S.cases.some(a=>a.sample))
+      S.cases.unshift(sample(assess(SAMPLES[0],false)), sample(assess(SAMPLES[3],false)));
+    S.view='home'; render();
+  };
+}
+
+function viewUpload(){
+  const v=$('#view'); v.innerHTML='';
+  const over = atLimit();
+  $('#crumb').innerHTML='WORKSPACE / <b>NEW CASE</b>';
+  if(over){ S.view='paywall'; return viewPaywall(); }
+
+  v.append(el('div','eyebrow','STEP 1 OF 3 — UPLOAD'));
+  v.append(el('h1','h-lg','Upload the closed account'));
+  v.append(el('p','sub','Drop the decision file: inspection reports, site photographs, invoices, '
+    +'draw requests, workflow logs, sign-offs, prior observations. Lens classifies each item '
+    +'into an evidence class and tells you what it could not establish.'));
+  const pvu=privacyBlock('upload'); pvu.style.marginTop='16px'; v.append(pvu);
+
+  const drop=el('div','drop'); drop.style.marginTop='18px';
+  drop.innerHTML='<div style="font-size:15px;font-weight:600">Drop files here</div>'
+    +'<div class="tiny" style="margin-top:6px">or <button class="btn ghost" id="browse" style="padding:2px 6px;color:var(--arc);text-decoration:underline">browse</button>'
+    +' &nbsp;·&nbsp; PDF, images, CSV, logs</div>'
+    +'<input type="file" id="fileinput" multiple hidden>';
+  v.append(drop);
+
+  const fl=el('div','filelist'); fl.id='filelist'; v.append(fl);
+  const act=el('div','row'); act.style.marginTop='16px';
+  const go=el('button','btn primary','Run assurance'); go.id='runbtn'; go.disabled=true;
+  go.onclick=()=>runLive();
+  const samp=el('button','btn','Use a sample account instead');
+  samp.onclick=()=>{ runOne(SAMPLES[S.nextSample % SAMPLES.length], false); };
+  act.append(go,samp); v.append(act);
+  const nt=el('div','note','Lens classifies each file and tests presence, freshness and sufficiency '
+    +'from what it can read in the browser. Controls that need field-level data — a coordinate inside '
+    +'an image, an amount inside an invoice — report that they could not run, rather than returning a '
+    +'pass. Those are completed by the assurance team from the file you send.');
+  nt.style.marginTop='16px'; v.append(nt);
+
+  const fi=drop.querySelector('#fileinput');
+  drop.querySelector('#browse').onclick=()=>fi.click();
+  fi.onchange=()=>addFiles([...fi.files]);
+  ['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over');}));
+  ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over');}));
+  drop.addEventListener('drop',ev=>{ ev.preventDefault(); addFiles([...(ev.dataTransfer?.files||[])]); });
+  paintFiles();
+}
+
+const MAX_FILE = 8 * 1024 * 1024;   // Netlify refuses a larger single file
+const MAX_TOTAL = 20 * 1024 * 1024; // and a larger submission overall
+
+function addFiles(files){
+  S.rejected=[];
+  files.forEach(f=>{
+    if(f.size>MAX_FILE){ S.rejected.push([f.name,'over 8 MB']); return; }
+    const total=S.dropped.reduce((n,x)=>n+x.size,0)+f.size;
+    if(total>MAX_TOTAL){ S.rejected.push([f.name,'would take the case over 20 MB']); return; }
+    S.dropped.push({name:f.name,size:f.size,mod:f.lastModified,cls:classify(f.name),file:f});
+  });
+  paintFiles();
+}
+function paintFiles(){
+  const fl=$('#filelist'); if(!fl) return; fl.innerHTML='';
+  S.dropped.forEach((f,i)=>{
+    const r=el('div','filerow');
+    r.innerHTML='<span class="stage done">INDEXED</span>'
+      +'<span class="fn">'+esc(f.name)+'</span>'
+      +'<span class="chip arc">'+f.cls+'</span>'
+      +'<span class="tiny" style="width:120px;text-align:right">'+esc(EV[f.cls])+'</span>';
+    const x=el('button','btn ghost','✕'); x.style.padding='0 4px'; x.style.color='var(--fog)';
+    x.setAttribute('aria-label','Remove '+f.name);
+    x.onclick=()=>{S.dropped.splice(i,1); paintFiles();};
+    r.append(x); fl.append(r);
+  });
+  const b=$('#runbtn'); if(b) b.disabled=!S.dropped.length;
+  if(S.dropped.length){
+    const cls=new Set(S.dropped.map(f=>f.cls));
+    const mb=S.dropped.reduce((n,x)=>n+x.size,0)/1048576;
+    const sum=el('div','tiny'); sum.style.marginTop='10px';
+    sum.textContent=cls.size+' evidence class'+(cls.size===1?'':'es')+' detected across '
+      +S.dropped.length+' file'+(S.dropped.length===1?'':'s')+', '+mb.toFixed(1)+' MB.';
+    fl.append(sum);
+  }
+  if(S.rejected && S.rejected.length){
+    const r=el('div','note'); r.style.marginTop='10px';
+    r.innerHTML='<b>Not attached.</b> '+S.rejected.map(([n,why])=>esc(n)+' — '+why).join('; ')
+      +'. Split the file or send it separately to '+CONTACT+'.';
+    fl.append(r);
+  }
+}
+
+/* Post to Netlify. Nothing here ever blocks the client: the workspace and the
+   report open whether or not the post lands, and a failure is recorded rather
+   than shown, so a network problem at their end does not cost the case. */
+const DIAG = {posts:[], endpoint:ENDPOINT || 'netlify-forms'};
+
+function postForm(name, fields, files){
+  const to = ENDPOINT || '/';
+  const rec = {form:name, to, at:new Date().toISOString(), files:(files||[]).length};
+  DIAG.posts.push(rec);
+  let p;
+  try{
+    if(files && files.length){
+      const body=new FormData();
+      body.append('form-name',name);
+      Object.entries(fields).forEach(([k,v])=>body.append(k,v));
+      files.forEach(f=>body.append('evidence',f,f.name));
+      body.append('bot-field','');
+      p=fetch(to,{method:'POST',body});   // the browser sets the boundary
+    }else{
+      const body=new URLSearchParams({'form-name':name,...fields,'bot-field':''});
+      p=fetch(to,{method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+    }
+  }catch(err){
+    rec.ok=false; rec.why='the browser refused the request';
+    S.undelivered=true; renderRail();
+    return Promise.reject(err);
+  }
+  return p.then(r=>{
+    rec.ok=r.ok; rec.status=r.status;
+    if(!r.ok){
+      /* A 404 here is the signature of Netlify form detection being off:
+         the site serves the page but has no form handler to accept the post. */
+      rec.why = r.status===404
+        ? 'no form handler answered — on Netlify this means form detection is off, or the form name is not registered'
+        : 'the server answered ' + r.status;
+      S.undelivered=true; renderRail();
+    }
+    return r;
+  }).catch(err=>{
+    rec.ok=false; rec.why='the request never completed';
+    S.undelivered=true; renderRail();
+    throw err;
+  });
+}
+
+function sendCase(a){
+  const who=S.profile||{};
+  const fails=a.controls.filter(c=>c.r==='Fail');
+  const summary=[
+    'Case: '+a.c.id,
+    'Outcome: '+a.outcome,
+    'Materiality: '+a.M,
+    'Evidence classes: '+[...a.c.classes].sort().join(', '),
+    'Controls failed: '+(fails.map(c=>c.code).join(', ')||'none'),
+    'Failure codes: '+(a.raised.join(', ')||'none'),
+    'Second review: '+(a.review.length?a.review.join('; '):'not required'),
+    'Files: '+(a.c.files||[]).join(', ')
+  ].join('\n');
+  postForm('lens-case',{
+    email:who.email||'', phone:who.phone||'', company:who.company||'',
+    case:a.c.id, summary
+  }, S.pendingFiles||[])
+    .then(r=>{ a.delivered=!!(r&&r.ok); })
+    .catch(()=>{ a.delivered=false; });
+  S.pendingFiles=null;
+}
+
+function runLive(){
+  const cls=new Set(S.dropped.map(f=>f.cls));
+  const newest=Math.max(...S.dropped.map(f=>f.mod));
+  const age=Math.max(0,Math.round((Date.now()-newest)/864e5));
+  const c={id:'DE-'+(2000+S.cases.length), acct:'YOUR-ACCOUNT', parcel:'[SUBJECT]',
+    exposure:0, docAmount:0, ageDays:age, live:true,
+    claim:{subject:'[SUBJECT]',event:'claimed event',loc:true,window:true,quantity:0,
+      freshness:14,tolerancePct:5,offsetM:0},
+    classes:cls, f:{governed:cls.has('EV-15'),trustedTime:cls.has('EV-06'),reused:false,
+      screen:'clean',sharedOrigin:false,vague:false,corroborationRetro:false},
+    files:S.dropped.map(f=>f.name)};
+  S.pendingFiles=S.dropped.map(f=>f.file).filter(Boolean);
+  S.dropped=[]; S.rejected=[];
+  runOne(c,true);
+}
+function runOne(c,live){
+  if(atLimit()){ S.view='paywall'; return render(); }
+  if(S.cases.find(a=>a.c.id===c.id)) c={...c,id:c.id+'-'+(S.cases.length+1)};
+  S.nextSample++;
+  S.pending=assess(c,live); S.view='run'; render();
+}
+
+const STEPS=[
+  ['Claim defined','The precise physical-world proposition the decision relied upon'],
+  ['Evidence inventoried','Separated into what was available at the decision and what surfaced later'],
+  ['ORA tests executed','Eight domains: source, time, location, capture, continuity, corroboration, sufficiency, custody'],
+  ['Failure modes classified','Mapped to the Operational Reality Failure Taxonomy'],
+  ['Controls evaluated','Technical tests run against the ORA Assurance Control Library'],
+  ['Outcome and materiality','Claim-level result, then assurance impact'],
+  ['Portfolio findings aggregated','Recurring weaknesses mapped to forward controls']
+];
+function viewRun(){
+  const v=$('#view'); v.innerHTML=''; const a=S.pending;
+  $('#crumb').innerHTML='WORKSPACE / <b>'+esc(a.c.id)+'</b> / ASSURANCE RUN';
+  v.append(el('div','eyebrow','STEP 2 OF 3 — ASSURANCE RUN'));
+  v.append(el('h1','h-lg','Running the seven-step review'));
+  v.append(el('p','sub','No prompt-by-prompt instruction. The methodology drives the tests, '
+    +'the tests use the evidence, and the result is built from structured test output.'));
+
+  const box=el('div','card'); box.style.marginTop='18px';
+  const steps=el('div','steps');
+  STEPS.forEach((s,i)=>{
+    const st=el('div','step'); st.dataset.s='idle'; st.dataset.i=i;
+    st.innerHTML='<div class="sdot">'+(i+1)+'</div><div><div class="st">'+esc(s[0])+'</div>'
+      +'<div class="sd">'+esc(s[1])+'</div></div>';
+    steps.append(st);
+  });
+  box.append(steps); v.append(box);
+
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const nodes=[...steps.children];
+  let i=0;
+  const tick=()=>{
+    if(i>0) nodes[i-1].dataset.s='done';
+    if(i>=nodes.length){
+      askQuota('consume');
+      if(a.c.live) sendCase(a);
+      S.cases.push(a); S.sel=a.c.id; S.view='report'; return render();
+    }
+    nodes[i].dataset.s='run'; i++;
+    setTimeout(tick, reduced?60:340);
+  };
+  setTimeout(tick, reduced?60:260);
+}
+
+function traceBlock(f,a){
+  const t=el('div','trace');
+  const rows=[
+    ['CLAIM', esc(a.c.claim.event)+' at '+esc(a.c.claim.subject)],
+    ['EVIDENCE', [...a.c.classes].slice(0,6).map(c=>'<span class="chip">'+c+'</span>').join(' ')],
+    ['TEST', esc(f.test)],
+    ['RESULT', '<span class="pill '+(f.result==='Fail'?'bad':'warn')+'"><span class="dot bg-'+(f.result==='Fail'?'bad':'warn')+'"></span>'+esc(f.result)+'</span>'],
+    ['FAILURE', '<span class="chip arc">'+f.primary+'</span> '+esc(ORF[f.primary])
+      +(f.secondary.length?' &nbsp;'+f.secondary.map(s=>'<span class="chip">'+s+'</span>').join(' '):'')],
+    ['CONTROL', f.controls.map(c=>'<span class="chip">'+c+'</span> '+esc(CTRL[c]?CTRL[c].n:'')).join('<br>')],
+    ['DOMAIN', f.d+' — '+esc(DOMAINS[f.d])],
+    ['MATERIALITY', '<span class="pill '+matClass(f.mat)+'">'+f.mat+'</span>'],
+    ['NEXT', 'Routed to human review before issuance']
+  ];
+  rows.forEach(([k,val])=>{
+    const r=el('div','tstep');
+    r.append(el('div','tk',k)); r.append(el('div','tv',val));
+    t.append(r);
+  });
+  return t;
+}
+
+function viewReport(){
+  const a=S.cases.find(x=>x.c.id===S.sel)||S.cases[S.cases.length-1];
+  if(!a){ S.view='home'; return viewHome(); }
+  const demo=!!a.sample;
+  const v=$('#view'); v.innerHTML='';
+  $('#crumb').innerHTML='WORKSPACE / <b>'+esc(a.c.id)+'</b>'
+    +(demo?' <span class="chip samp">SAMPLE</span>':'')+' / ASSURANCE REPORT';
+
+  if(demo){
+    const banner=el('div','note'); banner.id='demobanner'; banner.style.marginBottom='16px';
+    banner.innerHTML='<b>Sample.</b> One of our own closed draws, here so you can see what comes '
+      +'back before you send anything. It is not one of your cases and it has not used any of your '
+      +'five free cases.';
+    v.append(banner);
+  }
+
+  v.append(el('div','eyebrow','PV-ORA-AR-01 · OPERATIONAL REALITY ASSURANCE REPORT'));
+  const head=el('div','row'); head.style.alignItems='flex-start'; head.style.marginBottom='4px';
+  head.append(el('h1','h-lg',esc(a.c.id)));
+  head.append(el('div','pill '+OCLASS[a.outcome],'<span class="dot bg-'+OCLASS[a.outcome]+'"></span>'+esc(a.outcome)));
+  head.append(el('div','pill '+matClass(a.M),a.M));
+  if(a.review.length) head.append(el('div','pill neu','Second review required'));
+  v.append(head);
+  v.append(el('p','sub', a.c.live
+    ? 'Your uploaded file. '+a.c.files.length+' items across '+a.c.classes.size+' evidence classes.'
+    : esc(a.c.acct)+' · '+esc(a.c.parcel)+' · '+money(a.c.exposure)+' released · construction draw'));
+
+  /* 1. conclusion */
+  const s1=el('div','card'); s1.style.marginTop='18px';
+  s1.append(el('div','h-md','1. Executive assurance conclusion'));
+  const fails=a.findings.filter(f=>f.result==='Fail');
+  const na=a.controls.filter(c=>c.r===R.NA).length;
+  const VERDICT={
+    [OUTCOMES[0]]:'establishes the proposition the decision relied upon',
+    [OUTCOMES[1]]:'supports the proposition the decision relied upon, with limitations that reduce assurance',
+    [OUTCOMES[2]]:'does not establish the proposition the decision relied upon to the required threshold',
+    [OUTCOMES[3]]:'contains a contradiction that has to be resolved before the record can be relied upon'
+  };
+  const p1=el('p','',
+    'The evidence on file '+VERDICT[a.outcome]+'. '
+    +(fails.length
+      ? fails.length+' control'+(fails.length===1?'':'s')+' failed: '+fails.map(f=>f.control).join(', ')+'. '
+      : 'No control failed. ')
+    +(na? na+' control'+(na===1?'':'s')+' could not be evaluated on the evidence supplied. ' : '')
+    +'Assurance impact is assessed at '+a.M+'.');
+  p1.style.marginTop='8px'; s1.append(p1);
+  s1.append(el('p','tiny', a.outcome===OUTCOMES[2]
+    ? 'An insufficiently supported outcome means the evidence reviewed did not establish the claim to the '
+      +'required threshold. It does not establish that the underlying claim was false.'
+    : 'A control that could not be evaluated is reported as such and never as a pass. Absence of evidence '
+      +'is distinguished throughout from evidence of failure.'));
+  v.append(s1);
+
+  /* 5. domains */
+  const s5=el('div','card'); s5.style.marginTop='14px';
+  s5.append(el('div','h-md','5. ORA domain assessment'));
+  const strip=el('div','domains'); strip.style.marginTop='12px';
+  for(const d of 'PTLCNXQA'){
+    const n=el('div','dom '+domClass(a.dom[d]));
+    n.innerHTML='<div class="k">'+d+'</div><div class="v" style="color:var(--mist)">'+esc(a.dom[d])+'</div>';
+    n.title=DOMAINS[d];
+    strip.append(n);
+  }
+  s5.append(strip);
+  v.append(s5);
+
+  /* 4 & 7. findings */
+  const s4=el('div','card'); s4.style.marginTop='14px';
+  s4.append(el('div','h-md','4. Findings, traced to evidence'));
+  const p4=el('p','tiny','Open any finding to see the full chain from claim to evidence to test to failure '
+    +'code to control.');
+  p4.style.marginBottom='12px'; s4.append(p4);
+  if(!a.findings.length) s4.append(el('p','sub','No finding arose. Every control that could be evaluated passed.'));
+  a.findings.forEach(f=>{
+    const d=el('details','finding');
+    const sm=el('summary');
+    sm.innerHTML='<span class="chip arc">'+f.primary+'</span>'
+      +'<span class="h-sm" style="flex:1;min-width:180px">'+esc(f.title)+'</span>'
+      +'<span class="pill '+matClass(f.mat)+'">'+f.mat+'</span>';
+    d.append(sm);
+    const inner=el('div','inner');
+    const cond=el('p','',esc(f.condition)); cond.style.marginBottom='12px'; inner.append(cond);
+    inner.append(traceBlock(f,a));
+    d.append(inner); s4.append(d);
+  });
+  v.append(s4);
+
+  /* 8.2 retrospective */
+  if(a.atDecision!==a.outcome){
+    const s8=el('div','card'); s8.style.marginTop='14px';
+    s8.append(el('div','h-md','8.2 Retrospective assurance'));
+    const p8=el('p','tiny','Evidence obtained after the decision is never represented as having been '
+      +'available to the original decision maker.');
+    p8.style.marginBottom='10px'; s8.append(p8);
+    const t=el('div','scroll');
+    t.innerHTML='<table><thead><tr><th>On the original record alone</th>'
+      +'<th>With retrospective corroboration</th></tr></thead><tbody><tr>'
+      +'<td><span class="pill '+OCLASS[a.atDecision]+'">'+esc(a.atDecision)+'</span></td>'
+      +'<td><span class="pill '+OCLASS[a.outcome]+'">'+esc(a.outcome)+'</span></td>'
+      +'</tr></tbody></table>';
+    s8.append(t); v.append(s8);
+  }
+
+  /* control evaluation */
+  const sb=el('div','card'); sb.style.marginTop='14px';
+  sb.append(el('div','h-md','Appendix B. Control evaluation'));
+  const wrap=el('div','scroll'); wrap.style.marginTop='10px';
+  const rows=a.controls.map(c=>{
+    const cl=c.r==='Pass'?'ok':c.r==='Fail'?'bad':c.r==='Unable to determine'?'neu':'warn';
+    return '<tr><td class="mono" style="font-size:11px">'+c.code+'</td><td>'+esc(c.name)+'</td>'
+      +'<td>'+c.d+'</td><td><span class="pill '+cl+'">'+esc(c.r)+'</span></td>'
+      +'<td style="color:var(--mist);font-size:11.5px">'+esc(c.why)+'</td></tr>';
+  }).join('');
+  wrap.innerHTML='<table><thead><tr><th>Control</th><th>Name</th><th>Dom</th><th>Result</th>'
+    +'<th>Basis</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  sb.append(wrap); v.append(sb);
+
+  /* actions */
+  const act=el('div','row'); act.style.marginTop='18px';
+  const nb=el('button','btn primary', own().length ? 'Run another case' : 'Start my first case');
+  nb.onclick=()=>{ S.view = atLimit() ? 'paywall' : 'upload'; render(); };
+  const hb=el('button','btn', S.cases.length ? 'Portfolio view' : 'Back');
+  hb.onclick=()=>{S.view='home'; render();};
+  act.append(nb,hb); v.append(act);
+}
+
+function portfolioPanel(){
+  /* Your own cases, never mixed with ours. With none yet, the same view runs
+     over the two samples so the aggregation is visible before you send
+     anything, and it says plainly which set it is describing. */
+  const mine=own();
+  const set = mine.length ? mine : S.cases.filter(a=>a.sample);
+  const isSample = !mine.length;
+  const wrap=el('div',''); wrap.style.marginTop='26px';
+  const ph=el('div','row'); ph.style.alignItems='baseline';
+  ph.append(el('div','h-md', isSample ? 'Portfolio, across the samples' : 'Your portfolio'));
+  if(isSample) ph.append(el('span','chip samp','SAMPLE'));
+  wrap.append(ph);
+  if(!set.length) return wrap;
+  const counts={}; let exp=0;
+  set.forEach(a=>{counts[a.outcome]=(counts[a.outcome]||0)+1; exp+=a.c.exposure;});
+  ph.append(el('div','tiny',set.length+' case'+(set.length===1?'':'s')
+    +(exp?' · '+money(exp)+' exposure reviewed':'')));
+  if(isSample) wrap.append(el('p','tiny','This is what the portfolio view shows once you have run '
+    +'cases of your own. Recurring weaknesses map to the forward controls that would close them.'));
+  const g=el('div','grid'); g.style.gridTemplateColumns='repeat(auto-fit,minmax(200px,1fr))'; g.style.marginTop='12px';
+  OUTCOMES.forEach(o=>{
+    const c=el('div','card'); c.style.padding='14px';
+    c.innerHTML='<div class="pill '+OCLASS[o]+'" style="margin-bottom:9px"><span class="dot bg-'+OCLASS[o]+'"></span>'+esc(o)+'</div>'
+      +'<div style="font-size:25px;font-weight:800;font-variant-numeric:tabular-nums">'+(counts[o]||0)+'</div>';
+    g.append(c);
+  });
+  wrap.append(g);
+
+  const freq={};
+  set.forEach(a=>a.raised.forEach(f=>{ freq[f]=(freq[f]||0)+1; }));
+  const ent=Object.entries(freq).sort((x,y)=>y[1]-x[1]);
+  if(ent.length){
+    const c=el('div','card'); c.style.marginTop='14px';
+    c.append(el('div','h-sm','Recurring weaknesses, mapped to forward controls'));
+    const w=el('div','scroll'); w.style.marginTop='10px';
+    w.innerHTML='<table><thead><tr><th>Failure</th><th>Mode</th><th class="num">Events</th>'
+      +'<th>Pattern</th><th>Forward controls</th></tr></thead><tbody>'
+      +ent.map(([f,n])=>{
+        const p = n===1?'isolated' : n>set.length/2 ? 'systemic within the reviewed scope'
+          : n>=Math.max(2,set.length*0.25) ? 'recurring' : 'concentrated';
+        return '<tr><td class="mono" style="font-size:11px;color:var(--arc)">'+f+'</td><td>'+esc(ORF[f])
+          +'</td><td class="num">'+n+'</td><td style="color:var(--mist)">'+p+'</td><td class="mono" style="font-size:11px">'
+          +(F2C[f]||[]).join(' ')+'</td></tr>';
+      }).join('')+'</tbody></table>';
+    c.append(w); wrap.append(c);
+  }
+  return wrap;
+}
+
+/* ── paywall ─────────────────────────────────────────────────────── */
+function viewPaywall(){
+  const v=$('#view'); v.innerHTML='';
+  $('#crumb').innerHTML='WORKSPACE / <b>CONTINUE</b>';
+  const w=el('div','lock');
+  w.append(el('div','eyebrow','FREE CASES USED'));
+  w.append(el('h1','h-lg','Five cases run. Talk to us about the next cycle.'));
+  w.append(el('p','sub','Your five free cases are complete and stay open. Cycles are priced against '
+    +'the size of the book and how often you want it re-baselined, so we set that up with you rather '
+    +'than at a checkout. Tell us how you would rather pay and we will come back the same day.'));
+
+  const plans=el('div','grid'); plans.style.gridTemplateColumns='repeat(auto-fit,minmax(230px,1fr))';
+  plans.style.marginTop='18px';
+  const P=[
+    {k:'card',t:'Pay by card',d:'We send a payment link and the cycle opens as soon as it clears.'},
+    {k:'invoice',t:'Request an invoice',d:'We raise an invoice to your finance team on your terms.'}
+  ];
+  P.forEach(x=>{
+    const c=el('div','plan'); c.dataset.k=x.k;
+    c.innerHTML='<div class="h-sm">'+esc(x.t)+'</div>'
+      +'<div class="tiny" style="color:var(--mist)">'+esc(x.d)+'</div>';
+    const b=el('button','btn primary',x.t);
+    b.style.marginTop='auto'; b.onclick=()=>showContact(x.k);
+    c.append(b); plans.append(c);
+  });
+  w.append(plans);
+
+  const or=el('div','tiny'); or.style.margin='16px 0 0';
+  or.innerHTML='Or write to us directly: <code class="addr">'+CONTACT+'</code>';
+  w.append(or);
+
+  const host=el('div',''); host.id='formhost'; host.style.marginTop='18px'; w.append(host);
+  v.append(w);
+
+  function showContact(route){
+    [...plans.children].forEach(c=>c.classList.toggle('sel',c.dataset.k===route));
+    const who=S.profile||{};
+    const f=el('form','card'); f.noValidate=true;
+    f.innerHTML='<div class="h-md">'+(route==='card'?'Pay by card':'Request an invoice')+'</div>'
+      +'<p class="tiny" style="margin:6px 0 14px">We reply from '+CONTACT+' the same working day. '
+      +'No card details are taken on this page.</p>'
+      +'<div class="field"><label for="cemail">WORK EMAIL</label>'
+        +'<input id="cemail" name="email" type="email" autocomplete="email" value="'+esc(who.email||'')+'" required>'
+        +'<span class="err" id="e-cemail" hidden></span></div>'
+      +'<div class="field"><label for="cphone">PHONE</label>'
+        +'<input id="cphone" name="phone" type="tel" autocomplete="tel" value="'+esc(who.phone||'')+'" required>'
+        +'<span class="err" id="e-cphone" hidden></span></div>'
+      +'<div class="field"><label for="ccompany">COMPANY NAME</label>'
+        +'<input id="ccompany" name="company" autocomplete="organization" value="'+esc(who.company||'')+'" required>'
+        +'<span class="err" id="e-ccompany" hidden></span></div>'
+      +'<div class="field"><label for="cmsg">HOW MANY CASES, AND HOW OFTEN</label>'
+        +'<textarea id="cmsg" name="message" rows="3" placeholder="e.g. a closed book of about 400 draws, '
+        +'re-baselined quarterly"></textarea></div>'
+      +'<button class="btn primary" type="submit" style="width:100%">Send</button>';
+    f.onsubmit=e=>{
+      e.preventDefault();
+      const checks=[['cemail',checkEmail],['cphone',checkPhone],['ccompany',checkCompany]];
+      let ok=true;
+      checks.forEach(([id,fn])=>{
+        const msg=fn($('#'+id).value), err=$('#e-'+id);
+        $('#'+id).setAttribute('aria-invalid',msg?'true':'false');
+        err.textContent=msg; err.hidden=!msg;
+        if(msg) ok=false;
+      });
+      if(!ok){ const bad=checks.find(([id,fn])=>fn($('#'+id).value)); if(bad) $('#'+bad[0]).focus(); return; }
+      postForm('lens-contact',{
+        email:$('#cemail').value.trim(), phone:$('#cphone').value.trim(),
+        company:$('#ccompany').value.trim(), route:route, message:$('#cmsg').value.trim()
+      }).catch(()=>{});
+      const done=el('div','card');
+      done.innerHTML='<div class="pill ok" style="margin-bottom:10px">'
+        +'<span class="dot bg-ok"></span>Request sent</div>'
+        +'<div class="h-md">We will come back to you today</div>'
+        +'<p class="tiny" style="margin-top:6px">Your five completed cases stay open in the workspace. '
+        +'If you would rather not wait, write to <code class="addr">'+CONTACT+'</code>.</p>';
+      const back=el('button','btn','Back to my cases'); back.style.marginTop='12px';
+      back.onclick=()=>{S.view='home'; render();};
+      done.append(back);
+      $('#formhost').innerHTML=''; $('#formhost').append(done);
+    };
+    $('#formhost').innerHTML=''; $('#formhost').append(f);
+  }
+}
+
+const sample = a => { a.sample = true; return a; };
+
+/* ── The allowance ─────────────────────────────────────────────────────
+   A page cannot hold a usage limit. Whatever it stores, the reader can clear,
+   and an incognito window starts clean. The count that decides anything lives
+   on the server, at /api/quota, keyed on the organisation.
+
+   What is kept here is a mirror of it, so the meter can render immediately.
+   When the server answers, its number wins. When the server cannot be
+   reached, the mirror is used and the fact is recorded rather than hidden,
+   because a client should not be locked out by our outage.               */
+const QUOTA = '/api/quota';
+
+/* Replies can land out of order — a check answering after a consume would put
+   the older, smaller count back. Each call takes a ticket and only the newest
+   reply is allowed to write. */
+let quotaSeq = 0;
+
+function askQuota(action){
+  if(!S.profile) return Promise.resolve(null);
+  const seq = ++quotaSeq;
+  const apply = (fn) => { if(seq === quotaSeq) fn(); };
+  return fetch(QUOTA, {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action, email:S.profile.email,
+      company:S.profile.company, phone:S.profile.phone})})
+    .then(r=>{
+      if(!r.ok) throw new Error('quota ' + r.status);
+      return r.json();
+    })
+    .then(d=>{
+      if(typeof d.used === 'number'){
+        apply(()=>{
+          S.spent = d.used;
+          S.quotaServer = !d.degraded;
+          DIAG.quota = {action, used:d.used, limit:d.limit, scope:d.scope,
+            degraded: !!d.degraded};
+          saveState(); renderRail();
+        });
+      }
+      return d;
+    })
+    .catch(err=>{
+      apply(()=>{
+        S.quotaServer = false;
+        DIAG.quota = {action, error: String((err && err.message) || err)};
+        renderRail();
+      });
+      return null;
+    });
+}
+
+/* What the meter shows: the server's count where we have one, and the cases
+   in front of them otherwise. Never the smaller of the two. */
+const spent = () => Math.max(S.spent||0, own().length);
+const atLimit = () => spent() >= FREE && !S.paid;
+
+/* ── Coming back later ─────────────────────────────────────────────────
+   Everything lived in memory, so a refresh or a return visit lost the
+   profile and every completed case and asked the client to sign up again.
+   The workspace is kept in this browser instead.
+
+   Only the inputs are stored, never the assessment: on return the cases are
+   re-run through the current methodology, so a client who comes back after a
+   library change sees results consistent with it rather than a stale verdict
+   with a new version number on it. Uploaded files are not stored — a browser
+   cannot keep them and they have already been sent.                       */
+const STORE = 'pv.lens.v1';
+
+/* The allowance belongs to the organisation, taken from the work-email
+   domain, not to the person. Changing name, phone or mailbox inside the same
+   company reaches the same record and the same remaining count.
+
+   A plus-tag is stripped first, because kunle+2@ is the cheapest way to look
+   like somebody new.
+
+   Consumer mailboxes have no company behind them, so those key on the whole
+   address instead. */
+function identity(email){
+  const e=String(email||'').trim().toLowerCase();
+  const at=e.lastIndexOf('@');
+  if(at<1) return null;
+  let local=e.slice(0,at);
+  const domain=e.slice(at+1);
+  if(!domain.includes('.')) return null;
+  const plus=local.indexOf('+');
+  if(plus>0) local=local.slice(0,plus);
+  return {email:local+'@'+domain, domain,
+    consumer:CONSUMER.includes(domain),
+    key:CONSUMER.includes(domain) ? 'person:'+local+'@'+domain : 'company:'+domain};
+}
+const storeKey = id => STORE+'.'+id.key;
+
+function serialiseCase(c){
+  return {id:c.id, acct:c.acct, parcel:c.parcel, exposure:c.exposure,
+    docAmount:c.docAmount, ageDays:c.ageDays, live:!!c.live,
+    claim:c.claim, classes:[...c.classes], f:c.f, files:c.files||[]};
+}
+function reviveCase(o){ return Object.assign({}, o, {classes:new Set(o.classes||[])}); }
+
+function saveState(){
+  if(!S.profile || !S.identity) return;
+  try{
+    localStorage.setItem(storeKey(S.identity), JSON.stringify({
+      v:2, at:Date.now(), profile:S.profile, paid:!!S.paid, spent:S.spent||0,
+      cases:S.cases.map(a=>a.sample
+        ? {sample:true, i:SAMPLES.findIndex(x=>x.id===a.c.id)}
+        : {sample:false, c:serialiseCase(a.c)})
+    }));
+  }catch{ /* a private window or blocked site data; the session still works */ }
+}
+
+/* Signing in again with the same organisation reopens that workspace with the
+   allowance already spent, rather than handing out a fresh five. */
+function restoreFor(id){
+  let d;
+  try{
+    const raw=localStorage.getItem(storeKey(id));
+    if(!raw) return null;
+    d=JSON.parse(raw);
+  }catch{ return null; }
+  return (d && d.v===2 && d.profile && d.profile.email) ? d : null;
+}
+
+function lastIdentity(){
+  try{
+    const k=localStorage.getItem(STORE+'.last');
+    if(!k) return null;
+    const raw=localStorage.getItem(STORE+'.'+k);
+    if(!raw) return null;
+    const d=JSON.parse(raw);
+    return d && d.profile ? identity(d.profile.email) : null;
+  }catch{ return null; }
+}
+
+function restoreState(){
+  const id=lastIdentity();
+  if(!id) return false;
+  const d=restoreFor(id);
+  if(!d) return false;
+  try{
+    S.identity=id;
+    S.profile=d.profile;
+    S.paid=!!d.paid;
+    S.spent=d.spent||0;
+    S.cases=(d.cases||[]).map(x=>x.sample
+      ? sample(assess(SAMPLES[x.i>=0?x.i:0], false))
+      : assess(reviveCase(x.c), !!(x.c&&x.c.live)));
+    return true;
+  }catch{
+    S.profile=null; S.cases=[]; S.paid=false; S.identity=null; S.spent=0;
+    return false;
+  }
+}
+
+/* Clears the sign-in on this device. It does not return the allowance: that
+   record belongs to the organisation and is held on the server. */
+function forgetState(){
+  try{ localStorage.removeItem(STORE+'.last'); }catch{ /* nothing to clear */ }
+  S.profile=null; S.cases=[]; S.paid=false; S.sel=null; S.identity=null; S.spent=0;
+  S.dropped=[]; S.rejected=[]; S.undelivered=false;
+  S.view='gate'; render();
+}
+/* The meter, the paywall and the portfolio all count the client's own cases.
+   A sample is ours, so it is excluded from every one of them. */
+const own = () => S.cases.filter(a => !a.sample);
+
+/* ── router ──────────────────────────────────────────────────────── */
+function render(){
+  if(!S.profile) S.view='gate';
+  saveState();
+  renderRail();
+  if(S.view==='gate') viewGate();
+  else if(S.view==='home') viewHome();
+  else if(S.view==='upload') viewUpload();
+  else if(S.view==='run') viewRun();
+  else if(S.view==='report') viewReport();
+  else if(S.view==='paywall') viewPaywall();
+  window.scrollTo({top:0,behavior:'instant'});
+}
+$('#newcase').onclick=()=>{ S.view=atLimit()?'paywall':'upload'; closeRail(); render(); };
+
+/* On a phone the rail is a drawer. It opens from the control in the header,
+   closes on picking a case so the report is not left behind it, and closes on
+   Escape. On a tablet or a desktop the control is not rendered and the body is
+   always open, so none of this applies. */
+const rail = $('#rail');
+const railToggle = $('#railtoggle');
+function railOpen(){ return rail.dataset.open === 'true'; }
+function setRail(open){
+  rail.dataset.open = open ? 'true' : 'false';
+  railToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeRail(){ if(railOpen()) setRail(false); }
+railToggle.onclick=()=>setRail(!railOpen());
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeRail(); });
+
+/* Copy the contact address. mailto: is unreliable inside an artifact, so the
+   address is shown as selectable text and copying is the affordance. */
+$('#copycontact').onclick=async()=>{
+  const btn=$('#copycontact'), node=$('#contactaddr');
+  try{
+    await navigator.clipboard.writeText(CONTACT);
+    btn.textContent='Copied'; setTimeout(()=>{ btn.textContent='Copy'; },1600);
+  }catch{
+    const r=document.createRange(); r.selectNodeContents(node);
+    const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    btn.textContent='Select & copy'; setTimeout(()=>{ btn.textContent='Copy'; },2400);
+  }
+};
+
+/* For whoever deploys this. In the browser console:
+     LENS.diag()   what was posted, where it went, and what came back
+     LENS.state    the cases and the profile held in this browser        */
+/* A returning client lands back in their workspace rather than at the gate. */
+if(restoreState()) S.view='home';
+
+window.LENS = {
+  diag(){ return {build:'build 2026-09-25 00:54Z', endpoint:DIAG.endpoint, posts:DIAG.posts,
+    undelivered:!!S.undelivered, profile:S.profile,
+    cases:S.cases.length, mine:own().length, stored:(()=>{
+      try{ return !!localStorage.getItem(STORE); }catch{ return 'unavailable'; }
+    })()}; },
+  forget(){ forgetState(); return 'workspace cleared'; },
+  get state(){ return S; }
+};
+
+render();
+</script>
+</body>
+</html>
