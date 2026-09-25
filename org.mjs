@@ -1,202 +1,223 @@
-/* Members, roles, the domain allowlist, retention and the audit log.
+/* The organisation record, the roles on it, and the audit log beside it.
  *
- * Everything an administrator does to a workspace happens here, and every one
- * of those actions is recorded. Two rules hold throughout:
+ * One record per organisation, keyed the same way the allowance is keyed, so
+ * membership, roles, the domain allowlist, retention and the usage count are
+ * all the same object and cannot disagree with one another.
  *
- *   the actor comes from the token, never from the request body, so a caller
- *   cannot act as somebody else or on another organisation;
- *
- *   authority is checked on the server for every action, because the page is
- *   decoration and this is the control. A read-only member who edits the page
- *   in their browser still cannot change a role.
- *
- * Endpoints (all POST, JSON, all requiring `token`):
- *   { action: "state" }                          -> the workspace as this member sees it
- *   { action: "audit" }                          -> the log            (admin)
- *   { action: "setRole", email, role }           -> change a role      (admin)
- *   { action: "removeMember", email }            -> remove a member    (admin)
- *   { action: "setAllow", domains: [] }          -> domain allowlist   (admin)
- *   { action: "setRetention", days }             -> retention window   (admin)
- *   { action: "log", event, detail }             -> record a client-side action
+ * Every field is optional on read. A record written before roles existed is
+ * upgraded in place rather than replaced, because a client who signed in last
+ * week should not lose their count to a schema change.
  */
-import { normalise, json, verifyToken, secret } from './lib/identity.mjs';
-import {
-  blobs, readOrg, joinOrg, roleOf, can, record, readAudit, policy,
-  ROLES, ROLE_LABEL, CAN, FREE_LIMIT, DEFAULT_RETENTION_DAYS,
-} from './lib/org.mjs';
 
-/* Actions the browser is allowed to report. A client-reported event is
-   recorded as such: the log says `client` beside it, because an upload
-   happens in a browser and the server did not witness it. Saying which
-   entries were observed and which were reported is the same discipline the
-   product applies to a client's own evidence. */
-const CLIENT_EVENTS = new Set(['case.uploaded', 'case.dispositioned',
-  'report.exported', 'report.opened']);
-
-const RETENTION_CHOICES = [7, 30, 90, 180, 365];
-
-export default async (request) => {
-  if (request.method !== 'POST') return json(405, { error: 'POST only' });
-
-  let body;
-  try { body = await request.json(); } catch { return json(400, { error: 'expected JSON' }); }
-
-  if (!secret()) {
-    return json(503, { error: 'verification is not configured', needs: ['LENS_SECRET'] });
+/* Loaded at call time. A static import that cannot resolve takes the whole
+   function down before any code runs, and the endpoint then answers 404 —
+   indistinguishable from never having been deployed. */
+let storeFactory;
+export async function blobs() {
+  if (storeFactory !== undefined) return storeFactory;
+  try {
+    ({ getStore: storeFactory } = await import('@netlify/blobs'));
+  } catch {
+    storeFactory = null;
   }
+  return storeFactory;
+}
 
-  const claims = await verifyToken(body.token);
-  if (!claims) return json(401, { error: 'a verified session is required' });
-
-  const key = claims.k;
-  const id = normalise(claims.e);
-  if (!key || !id) return json(401, { error: 'that session is not usable' });
-
-  const getStore = await blobs();
-  if (!getStore) return json(503, { error: 'storage is not available to this function' });
-  const orgs = getStore({ name: 'lens-quota', consistency: 'strong' });
-  const audit = getStore({ name: 'lens-audit', consistency: 'strong' });
-
-  const rec = await readOrg(orgs, key, id);
-  if (!rec) return json(503, { error: 'storage is not available to this function' });
-  joinOrg(rec, id);
-  const role = roleOf(rec, id.email);
-
-  const save = async () => {
-    try { await orgs.setJSON(key, rec); return true; } catch { return false; }
-  };
-
-  const view = () => ({
-    domain: rec.domain,
-    plan: rec.plan,
-    used: rec.used,
-    limit: FREE_LIMIT,
-    retentionDays: rec.retentionDays,
-    allow: rec.allow,
-    policy: policy(),
-    you: { email: id.email, role, can: CAN[role] },
-    roles: ROLE_LABEL,
-    /* Everyone sees who is in their workspace. Only an admin can change it.
-       Hiding the membership from a reviewer would make the log unreadable to
-       the people most likely to need it. */
-    members: Object.entries(rec.members).map(([email, m]) => ({
-      email,
-      role: m.role,
-      company: m.company || '',
-      firstSeen: m.firstSeen,
-      lastSeen: m.lastSeen,
-      you: email === id.email,
-    })).sort((a, b) => a.email.localeCompare(b.email)),
-  });
-
-  /* ── everybody ───────────────────────────────────────────────────── */
-  if (body.action === 'state') return json(200, view());
-
-  if (body.action === 'log') {
-    if (!CLIENT_EVENTS.has(body.event)) return json(400, { error: 'unknown event' });
-    /* Read-only members cannot upload or export, so a report of either from
-       one is itself worth recording rather than discarding silently. */
-    const permitted = body.event === 'report.opened'
-      || (body.event === 'case.uploaded' && can(role, 'upload'))
-      || (body.event === 'case.dispositioned' && can(role, 'run'))
-      || (body.event === 'report.exported' && can(role, 'export'));
-    await record(audit, key, {
-      action: body.event,
-      actor: id.email,
-      detail: permitted
-        ? String(body.detail || '').slice(0, 200)
-        : `refused: ${role}`,
-      src: 'client',
-    }, rec.retentionDays);
-    return json(200, { recorded: true, permitted });
-  }
-
-  /* ── admin only ──────────────────────────────────────────────────── */
-  if (!can(role, 'manage') && body.action !== 'audit') {
-    return json(403, { error: 'that action needs an admin', role });
-  }
-  if (body.action === 'audit' && !can(role, 'audit')) {
-    return json(403, { error: 'the audit log is visible to an admin', role });
-  }
-
-  if (body.action === 'audit') {
-    const events = await readAudit(audit, key, rec.retentionDays);
-    await record(audit, key, { action: 'admin.audit.exported', actor: id.email },
-      rec.retentionDays);
-    return json(200, { events, retentionDays: rec.retentionDays });
-  }
-
-  if (body.action === 'setRole') {
-    const target = normalise(body.email);
-    if (!target || !rec.members[target.email]) return json(400, { error: 'no such member' });
-    if (!ROLES.includes(body.role)) return json(400, { error: 'unknown role' });
-    /* An organisation must keep someone who can administer it. Removing the
-       last admin would leave a workspace nobody can manage and no route back
-       except asking us, which is a support ticket waiting to happen. */
-    const admins = Object.entries(rec.members).filter(([, m]) => m.role === 'admin');
-    if (admins.length === 1 && admins[0][0] === target.email && body.role !== 'admin') {
-      return json(400, { error: 'a workspace must keep at least one admin' });
-    }
-    const was = rec.members[target.email].role;
-    rec.members[target.email].role = body.role;
-    if (!(await save())) return json(503, { error: 'could not save' });
-    await record(audit, key, {
-      action: 'admin.role.changed', actor: id.email,
-      detail: `${target.email}: ${was} to ${body.role}`,
-    }, rec.retentionDays);
-    return json(200, view());
-  }
-
-  if (body.action === 'removeMember') {
-    const target = normalise(body.email);
-    if (!target || !rec.members[target.email]) return json(400, { error: 'no such member' });
-    if (target.email === id.email) return json(400, { error: 'you cannot remove yourself' });
-    const admins = Object.entries(rec.members).filter(([, m]) => m.role === 'admin');
-    if (admins.length === 1 && admins[0][0] === target.email) {
-      return json(400, { error: 'a workspace must keep at least one admin' });
-    }
-    delete rec.members[target.email];
-    if (!(await save())) return json(503, { error: 'could not save' });
-    await record(audit, key, {
-      action: 'admin.member.removed', actor: id.email, detail: target.email,
-    }, rec.retentionDays);
-    return json(200, view());
-  }
-
-  if (body.action === 'setAllow') {
-    const list = (Array.isArray(body.domains) ? body.domains : [])
-      .map((d) => String(d || '').trim().toLowerCase())
-      .filter((d) => /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(d))
-      .slice(0, 25);
-    /* The founding domain cannot be removed. Without this an admin could lock
-       their own organisation out of its own workspace in one click. */
-    if (!list.includes(rec.domain)) list.unshift(rec.domain);
-    const was = rec.allow.join(', ');
-    rec.allow = [...new Set(list)];
-    if (!(await save())) return json(503, { error: 'could not save' });
-    await record(audit, key, {
-      action: 'admin.allowlist.changed', actor: id.email,
-      detail: `${was} to ${rec.allow.join(', ')}`,
-    }, rec.retentionDays);
-    return json(200, view());
-  }
-
-  if (body.action === 'setRetention') {
-    const days = Number(body.days);
-    if (!RETENTION_CHOICES.includes(days)) {
-      return json(400, { error: 'retention must be one of ' + RETENTION_CHOICES.join(', ') });
-    }
-    const was = rec.retentionDays;
-    rec.retentionDays = days;
-    if (!(await save())) return json(503, { error: 'could not save' });
-    await record(audit, key, {
-      action: 'admin.retention.changed', actor: id.email, detail: `${was} to ${days} days`,
-    }, days);
-    return json(200, view());
-  }
-
-  return json(400, { error: 'unknown action' });
+export const ROLES = ['admin', 'reviewer', 'readonly'];
+export const ROLE_LABEL = {
+  admin: 'Admin',
+  reviewer: 'Reviewer',
+  readonly: 'Read-only',
 };
 
-export const config = { path: '/api/org' };
-export { RETENTION_CHOICES, DEFAULT_RETENTION_DAYS };
+/* What each role may do. Read by the server on every request; the page reads
+   the same shape so the two cannot describe different products, but the page
+   is decoration and this is the control. */
+export const CAN = {
+  admin: { run: true, upload: true, export: true, manage: true, audit: true },
+  reviewer: { run: true, upload: true, export: true, manage: false, audit: false },
+  readonly: { run: false, upload: false, export: false, manage: false, audit: false },
+};
+
+export const DEFAULT_RETENTION_DAYS = 30;
+export const FREE_LIMIT = 5;
+
+export const emptyOrg = (id) => ({
+  domain: id.domain,
+  createdAt: new Date().toISOString(),
+  used: 0,
+  plan: 'free',
+  /* The founding domain only. An admin widens this when a group has more than
+     one mail domain, which is the common case for a carrier with subsidiaries
+     and the reason a plain domain match is not enough on its own. */
+  allow: [id.domain],
+  retentionDays: DEFAULT_RETENTION_DAYS,
+  members: {},
+  locks: {},
+});
+
+/* Reads and upgrades in one step, so no caller ever sees a half-shaped
+   record. Returns null only when the store itself could not be reached. */
+export async function readOrg(store, key, id) {
+  let rec;
+  try {
+    rec = await store.get(key, { type: 'json' });
+  } catch {
+    return null;
+  }
+  if (!rec) return emptyOrg(id);
+
+  rec.domain = rec.domain || id.domain;
+  rec.used = typeof rec.used === 'number' ? rec.used : 0;
+  rec.plan = rec.plan || 'free';
+  rec.allow = Array.isArray(rec.allow) && rec.allow.length ? rec.allow : [id.domain];
+  rec.retentionDays = typeof rec.retentionDays === 'number'
+    ? rec.retentionDays : DEFAULT_RETENTION_DAYS;
+  rec.members = rec.members || {};
+  rec.locks = rec.locks || {};
+
+  /* Records written before roles existed carry a flat people list. Those
+     people are members; the earliest is the admin, because somebody has to be
+     able to manage the organisation and it should be whoever started it. */
+  if (Array.isArray(rec.people) && rec.people.length && !Object.keys(rec.members).length) {
+    rec.people.forEach((p, i) => {
+      if (!p || !p.email) return;
+      rec.members[p.email] = {
+        role: i === 0 ? 'admin' : 'reviewer',
+        company: p.company || '',
+        phone: p.phone || '',
+        industry: p.industry || '',
+        firstSeen: p.verifiedAt || p.at || rec.createdAt,
+        lastSeen: p.verifiedAt || p.at || rec.createdAt,
+      };
+    });
+    delete rec.people;
+  }
+  return rec;
+}
+
+/* The first verified person at an organisation becomes its admin. Everyone
+   after them is a reviewer until the admin says otherwise, which is the only
+   arrangement that works without a separate provisioning step. */
+export function joinOrg(rec, id, details = {}) {
+  const existing = rec.members[id.email];
+  const first = Object.keys(rec.members).length === 0;
+  const member = existing || {
+    role: first ? 'admin' : 'reviewer',
+    firstSeen: new Date().toISOString(),
+  };
+  member.lastSeen = new Date().toISOString();
+  if (details.company) member.company = String(details.company).slice(0, 120);
+  if (details.phone) member.phone = String(details.phone).slice(0, 40);
+  if (details.industry) member.industry = String(details.industry).slice(0, 80);
+  rec.members[id.email] = member;
+  return member;
+}
+
+export const roleOf = (rec, email) =>
+  (rec.members[email] && rec.members[email].role) || 'reviewer';
+export const can = (role, what) => Boolean((CAN[role] || CAN.readonly)[what]);
+
+/* An address may sign in to an organisation when its domain is on that
+   organisation's allowlist. The founding domain is always on it. */
+export const domainAllowed = (rec, domain) =>
+  !rec.allow || !rec.allow.length || rec.allow.includes(domain);
+
+/* ── lockouts ───────────────────────────────────────────────────────────
+   The send rate limit bounds how much mail an attacker can cause. This bounds
+   how many codes they can burn through: repeated failures stop the address
+   being usable for a while, so a six-digit code cannot be ground down by
+   volume. It is per address rather than per IP because the address is the
+   thing being attacked and an IP is cheap to change. */
+export const LOCK_AFTER = 3;
+export const LOCK_MS = 30 * 60 * 1000;
+
+export function lockState(rec, email) {
+  const l = rec.locks[email];
+  if (!l) return { locked: false, fails: 0 };
+  if (l.until && Date.now() < l.until) {
+    return { locked: true, fails: l.fails, retryInSec: Math.ceil((l.until - Date.now()) / 1000) };
+  }
+  return { locked: false, fails: l.fails || 0 };
+}
+
+export function noteFailure(rec, email) {
+  const l = rec.locks[email] || { fails: 0, until: 0 };
+  l.fails = (l.fails || 0) + 1;
+  if (l.fails >= LOCK_AFTER) {
+    l.until = Date.now() + LOCK_MS;
+    l.fails = 0;
+    rec.locks[email] = l;
+    return true;
+  }
+  rec.locks[email] = l;
+  return false;
+}
+
+export function clearFailures(rec, email) {
+  delete rec.locks[email];
+}
+
+/* ── audit ──────────────────────────────────────────────────────────────
+   Append-only from the caller's point of view: nothing in the product edits
+   or removes an entry, and the only thing that takes entries out is the
+   retention window.
+
+   Every entry records where it came from. Sign-in, role changes and the
+   allowance are observed by the server and are `server`. An upload or an
+   export happens in the browser and is reported by it, so those are `client`.
+   Saying which is which is the honest thing to do in a log that a reviewer
+   may one day rely on, and it is the distinction this whole product exists
+   to make. */
+export const AUDIT_ACTIONS = new Set([
+  'signin.code.sent', 'signin.verified', 'signin.failed', 'signin.locked',
+  'signin.blocked.domain', 'signin.blocked.consumer',
+  'case.uploaded', 'case.run', 'case.dispositioned', 'report.exported', 'report.opened',
+  'admin.role.changed', 'admin.member.removed', 'admin.allowlist.changed',
+  'admin.retention.changed', 'admin.audit.exported',
+]);
+
+const CAP = 2000;
+
+export async function record(auditStore, key, entry, retentionDays = DEFAULT_RETENTION_DAYS) {
+  if (!AUDIT_ACTIONS.has(entry.action)) return;
+  let log;
+  try {
+    log = (await auditStore.get(key, { type: 'json' })) || { events: [] };
+  } catch {
+    return; /* the log is best effort; it never blocks the action it records */
+  }
+  log.events = Array.isArray(log.events) ? log.events : [];
+  log.events.push({
+    t: new Date().toISOString(),
+    actor: entry.actor || null,
+    action: entry.action,
+    detail: entry.detail || null,
+    src: entry.src || 'server',
+  });
+  const cutoff = Date.now() - retentionDays * 864e5;
+  log.events = log.events
+    .filter((e) => Date.parse(e.t) >= cutoff)
+    .slice(-CAP);
+  try { await auditStore.setJSON(key, log); } catch { /* best effort */ }
+}
+
+export async function readAudit(auditStore, key, retentionDays = DEFAULT_RETENTION_DAYS) {
+  let log;
+  try {
+    log = (await auditStore.get(key, { type: 'json' })) || { events: [] };
+  } catch {
+    return [];
+  }
+  const cutoff = Date.now() - retentionDays * 864e5;
+  return (log.events || []).filter((e) => Date.parse(e.t) >= cutoff);
+}
+
+/* What the deployment tells clients about how their material is handled.
+   Read from the environment so a platform deployment can promise something
+   the public one cannot, without a separate build. */
+export function policy() {
+  const evidence = process.env.LENS_EVIDENCE === 'none' ? 'none' : 'email';
+  const retentionDays = Number(process.env.LENS_RETENTION_DAYS) || DEFAULT_RETENTION_DAYS;
+  return { evidence, retentionDays, freeLimit: FREE_LIMIT };
+}
