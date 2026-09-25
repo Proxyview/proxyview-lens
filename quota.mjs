@@ -10,58 +10,33 @@
  * the evasion worth closing: one firm should not get five free cases per
  * employee.
  *
+ * WHAT CHANGED, AND WHY IT MATTERED
+ * This endpoint used to act on whatever address the caller typed. Two things
+ * followed, and both were real rather than theoretical:
+ *   - anyone could POST a consume for someone else's domain five times and
+ *     exhaust that organisation's allowance before Proxyview ever reached
+ *     them, so the prospect met a paywall on their first visit;
+ *   - anyone could POST a check for a named domain and read how many cases
+ *     that organisation had run, which disclosed the pipeline to whoever
+ *     thought to ask.
+ * Both existed because the address was asserted and never verified. Every
+ * request now carries a token issued by /api/verify, which is only obtainable
+ * by someone who received a code at that address, and the token's own key has
+ * to match the organisation being acted on. A caller cannot spend or read an
+ * allowance that is not theirs.
+ *
  * Runs on Netlify Blobs, which needs no provisioning and no database.
  *
- * Endpoints (all POST, JSON):
- *   { action: "check",   email, company, phone }  -> { used, limit, allowed }
- *   { action: "consume", email, company, phone }  -> { used, limit, allowed }
+ * Endpoints (all POST, JSON, all requiring `token`):
+ *   { action: "check",   token }  -> { used, limit, allowed }
+ *   { action: "consume", token }  -> { used, limit, allowed }
  */
-/* Loaded at call time rather than imported at the top.
- *
- * A static import that cannot resolve takes the whole function down before
- * any code runs, and the endpoint then answers 404 — indistinguishable from
- * never having been deployed. Resolving it here means a missing dependency
- * reports itself in the response instead of disappearing. */
-let storeFactory;
-async function blobs() {
-  if (storeFactory !== undefined) return storeFactory;
-  try {
-    ({ getStore: storeFactory } = await import('@netlify/blobs'));
-  } catch {
-    storeFactory = null;
-  }
-  return storeFactory;
-}
+import { normalise, json, verifyToken, secret } from './lib/identity.mjs';
+import {
+  blobs, readOrg, joinOrg, roleOf, can, record, CAN, FREE_LIMIT,
+} from './lib/org.mjs';
 
-const LIMIT = 5;
-
-/* Consumer mailboxes have no company behind them, so they are keyed on the
-   whole address. Everything else is keyed on the domain. */
-const CONSUMER = new Set([
-  'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.uk', 'hotmail.com',
-  'hotmail.co.uk', 'outlook.com', 'live.com', 'msn.com', 'icloud.com', 'me.com',
-  'mac.com', 'aol.com', 'proton.me', 'protonmail.com', 'gmx.com', 'mail.com',
-  'yandex.com', 'zoho.com', 'qq.com', '163.com',
-]);
-
-function normalise(raw) {
-  const email = String(raw || '').trim().toLowerCase();
-  const at = email.lastIndexOf('@');
-  if (at < 1) return null;
-  let local = email.slice(0, at);
-  const domain = email.slice(at + 1);
-  if (!domain.includes('.')) return null;
-  /* A plus-tag is the cheapest way to look like a new person, so it is
-     stripped before the address is used as a key. */
-  const plus = local.indexOf('+');
-  if (plus > 0) local = local.slice(0, plus);
-  return { email: `${local}@${domain}`, domain, consumer: CONSUMER.has(domain) };
-}
-
-const json = (status, body) => new Response(JSON.stringify(body), {
-  status,
-  headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
-});
+const LIMIT = FREE_LIMIT;
 
 export default async (request) => {
   if (request.method !== 'POST') return json(405, { error: 'POST only' });
@@ -69,10 +44,29 @@ export default async (request) => {
   let body;
   try { body = await request.json(); } catch { return json(400, { error: 'expected JSON' }); }
 
-  const id = normalise(body.email);
-  if (!id) return json(400, { error: 'a valid work email is required' });
+  if (!secret()) {
+    /* Without a signing secret no token can be checked, so nothing here can
+       be trusted. Saying so is the honest answer; quietly reverting to the
+       old behaviour would reopen both defects while looking healthy. */
+    return json(503, {
+      error: 'verification is not configured',
+      needs: ['LENS_SECRET'],
+      enforced: false,
+    });
+  }
 
-  const key = id.consumer ? `person:${id.email}` : `company:${id.domain}`;
+  const claims = await verifyToken(body.token);
+  if (!claims) {
+    return json(401, { error: 'a verified session is required', verify: '/api/verify' });
+  }
+
+  /* The key comes from the token, never from the request body. This one line
+     is what stops a caller acting on an organisation that is not theirs: even
+     a well-formed request naming another domain reaches the record its own
+     token names. */
+  const key = claims.k;
+  const id = normalise(claims.e);
+  if (!key || !id) return json(401, { error: 'that session is not usable' });
 
   const getStore = await blobs();
   if (!getStore) {
@@ -85,36 +79,39 @@ export default async (request) => {
     });
   }
   const store = getStore({ name: 'lens-quota', consistency: 'strong' });
+  const audit = getStore({ name: 'lens-audit', consistency: 'strong' });
 
-  let rec;
-  try {
-    rec = (await store.get(key, { type: 'json' })) || null;
-  } catch {
+  const rec = await readOrg(store, key, id);
+  if (!rec) {
     /* Reaching the store failed. Refusing the client here would punish them
        for our outage, so the run is allowed and the failure is reported for
        the page to record. */
     return json(200, { used: 0, limit: LIMIT, allowed: true, degraded: true });
   }
 
-  rec = rec || { used: 0, firstSeen: new Date().toISOString(), people: [] };
+  const member = joinOrg(rec, id, body);
+  const role = roleOf(rec, id.email);
+
+  /* A read-only member may read what the organisation has already run and may
+     not spend the allowance. Enforced here rather than only in the page,
+     because a page is decoration and this is the control. */
+  if (body.action === 'consume' && !can(role, 'run')) {
+    await record(audit, key, {
+      action: 'case.run', actor: id.email, detail: 'refused: read-only',
+    }, rec.retentionDays);
+    return json(403, {
+      error: 'a read-only member cannot run a case',
+      role, can: CAN[role], used: rec.used, limit: LIMIT, allowed: false,
+    });
+  }
 
   if (body.action === 'consume') {
     if (rec.used >= LIMIT) {
-      return json(200, { used: rec.used, limit: LIMIT, allowed: false });
+      return json(200, { used: rec.used, limit: LIMIT, allowed: false, role, can: CAN[role] });
     }
     rec.used += 1;
   }
 
-  /* Every identity that has touched this organisation's allowance is kept, so
-     a second person from the same firm is visible rather than invisible. */
-  if (!rec.people.some((p) => p.email === id.email)) {
-    rec.people.push({
-      email: id.email,
-      company: String(body.company || '').slice(0, 120),
-      phone: String(body.phone || '').slice(0, 40),
-      at: new Date().toISOString(),
-    });
-  }
   rec.lastSeen = new Date().toISOString();
 
   try {
@@ -123,11 +120,24 @@ export default async (request) => {
     return json(200, { used: rec.used, limit: LIMIT, allowed: rec.used <= LIMIT, degraded: true });
   }
 
+  if (body.action === 'consume') {
+    await record(audit, key, {
+      action: 'case.run', actor: id.email, detail: `${rec.used} of ${LIMIT}`,
+    }, rec.retentionDays);
+  }
+
   return json(200, {
     used: rec.used,
     limit: LIMIT,
     allowed: rec.used < LIMIT || body.action === 'consume',
-    scope: id.consumer ? 'person' : 'company',
+    scope: key.startsWith('person:') ? 'person' : 'company',
+    verified: id.email,
+    role,
+    can: CAN[role],
+    plan: rec.plan,
+    members: Object.keys(rec.members).length,
+    retentionDays: rec.retentionDays,
+    since: member.firstSeen,
   });
 };
 
