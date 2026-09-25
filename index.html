@@ -111,6 +111,12 @@ td{padding:10px;border-bottom:1px solid rgba(28,48,87,.5);vertical-align:top}
 tr:last-child td{border-bottom:none}
 .num{font-variant-numeric:tabular-nums;text-align:right}
 .scroll{overflow-x:auto}
+.dispbox{padding:12px 2px 4px;max-width:640px}
+.dispbox select,.dispbox textarea{margin-top:4px}
+tr.dispedit td{background:rgba(12,26,46,.6)}
+.dispcell{min-width:150px}
+.sweep{margin-top:12px;padding:11px 12px;border:1px solid var(--line);border-radius:var(--r);
+  background:var(--ink2)}
 
 /* ── upload ──────────────────────────────────────────────────────── */
 .drop{border:2px dashed var(--ghost);border-radius:14px;padding:44px 24px;text-align:center;background:var(--ink2);transition:border-color .15s,background .15s}
@@ -181,6 +187,16 @@ label{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em
 .privacy svg{flex:none;margin-top:1px}
 .privacy .pt{font-size:12px;line-height:1.55;color:var(--mist)}
 .privacy .pt b{color:var(--white);font-weight:600}
+.memberlist .tstep{align-items:center;gap:14px}
+.memberlist .tk{width:auto;min-width:0;flex:1 1 auto;word-break:break-all;font-size:12px}
+.memberlist .tv{flex:0 0 auto;width:auto;text-align:right}
+.memberlist .tv .row{flex-wrap:nowrap;justify-content:flex-end}
+.memberlist .tv select{width:auto;min-width:126px}
+@media (max-width:640px){
+  .memberlist .tstep{flex-wrap:wrap}
+  .memberlist .tv{width:100%;text-align:left;margin-top:8px}
+  .memberlist .tv .row{justify-content:flex-start}
+}
 .privacy .pt a,.privacy .pt code{color:var(--arc);font-family:var(--mono);font-size:11px;user-select:all}
 .undeliv{margin-top:12px;padding:11px 12px;border:1px solid #7d2a3d;border-radius:var(--r);
   background:rgba(255,93,128,.07);display:flex;flex-direction:column;gap:6px}
@@ -339,6 +355,12 @@ input[aria-invalid="true"]{border-color:var(--danger)}
       <button class="btn primary" id="upgrade" style="display:none">Talk to us about a cycle</button>
     </div>
 
+    <div id="admincta" hidden style="margin-top:12px">
+      <button class="btn ghost" id="openadmin" style="width:100%">Workspace and audit log</button>
+    </div>
+
+    <div id="rolechip" class="tiny" hidden style="padding:8px 3px 0"></div>
+
     <div id="who" class="tiny" hidden style="padding:11px 3px 0;border-top:1px solid var(--line);margin-top:12px"></div>
 
     <div id="quotanote" class="tiny" hidden style="padding:8px 3px 0;color:var(--fog)">
@@ -367,7 +389,7 @@ input[aria-invalid="true"]{border-color:var(--danger)}
       <div class="spacer"></div>
       <div class="chip" id="libchip">ORA library v0.1.0</div>
       <div class="chip">48 controls · 40 failure modes</div>
-      <div class="chip" id="buildchip" title="The build this page was deployed from">build 2026-09-25 03:00Z</div>
+      <div class="chip" id="buildchip" title="The build this page was deployed from">build 2026-09-25 08:02Z</div>
     </header>
     <div class="body" id="view"></div>
   </div>
@@ -672,9 +694,18 @@ const R = {PASS:'Pass',LIM:'Pass with limitation',FAIL:'Fail',NA:'Unable to dete
 function runControl(code,c,live){
   const spec=CTRL[code], has=x=>c.classes.has(x);
   const missing=spec.min.filter(m=>!has(m)&&m!=='EV-20');
-  const out=(r,why,f)=>({code,name:spec.n,d:spec.d,r,why,f:f||[],missing});
+  /* A control that could not be evaluated has two quite different reasons
+     behind it, and until now they were indistinguishable outside the prose.
+     One is that the client's pack was short, which only the client can
+     resolve. The other is that Lens implements no test for that control,
+     which is our gap and nothing the client can act on. Carrying the reason
+     as a field lets the report say which, and lets a bulk action leave the
+     client's half alone. */
+  const out=(r,why,f,naReason)=>({code,name:spec.n,d:spec.d,r,why,f:f||[],missing,
+    naReason: r===R.NA ? (naReason||'evidence') : null});
   if(missing.length && spec.absent!=='fail' && spec.absent!=='benign')
-    return out(R.NA,'Minimum evidence not supplied: '+missing.map(m=>m+' ('+EV[m]+')').join(', ')+'.');
+    return out(R.NA,'Minimum evidence not supplied: '+missing.map(m=>m+' ('+EV[m]+')').join(', ')+'.',
+      [], 'evidence');
 
   const F=c.f, CL=c.claim;
   switch(code){
@@ -740,7 +771,8 @@ function runControl(code,c,live){
     default:
       return out(R.NA, live
         ? 'Minimum evidence is present, but this control needs field-level data that only the ingestion service extracts.'
-        : 'Minimum evidence is present, but no technical test is implemented for this control, so no result can be asserted.');
+        : 'Minimum evidence is present, but no technical test is implemented for this control, so no result can be asserted.',
+        [], 'untested');
   }
 }
 
@@ -806,6 +838,14 @@ const matClass = m=>({M1:'neu',M2:'warn',M3:'warn',M4:'bad'})[m];
 const domClass = s=>s==='Not assessed'?'NA':s;
 
 function renderRail(){
+  const roleChip=$('#rolechip');
+  if(roleChip){
+    roleChip.hidden = !(S.profile && S.role);
+    if(S.role){
+      roleChip.innerHTML='<span class="chip">'+esc((ROLE_LABELS[S.role]||S.role).toUpperCase())+'</span>'
+        +' <span style="color:var(--fog)">'+esc(S.org&&S.org.domain||'')+'</span>';
+    }
+  }
   const w=$('#who');
   if(S.profile){
     w.hidden=false;
@@ -846,15 +886,18 @@ function renderRail(){
   const over = used>=FREE && !S.paid;
   const rc=$('#railcount');
   if(rc) rc.textContent = S.paid ? 'Unlimited' : used+' of '+FREE;
+  const cta=$('#admincta');
+  if(cta) cta.hidden = !(S.profile && S.token && S.role);
   const q=$('#quotanote');
   /* Strictly false, so a server that is failing says so and a server that
      was never deployed says nothing. */
   if(q) q.hidden = S.quotaServer !== false || !S.profile;
   $('#metertext').textContent = S.paid
     ? 'Cycle active. Cases run without a limit.'
-    : over ? 'Free cases used. Talk to us about a cycle.'
-    : (FREE-used)+' free case'+(FREE-used===1?'':'s')+' remaining. The samples above are ours and '
-      +'do not count.';
+    : over
+      ? 'All five free closed accounts used. Reports stay readable; running more needs a cycle.'
+      : (FREE-used)+' of 5 free closed accounts remaining, for the whole organisation rather '
+        +'than each person. The samples above are ours and do not count.';
   $('#upgrade').style.display = over ? 'block' : 'none';
   $('#upgrade').onclick=()=>{S.view='paywall'; render();};
 }
@@ -923,17 +966,58 @@ const SHIELD = '<svg width="26" height="26" viewBox="0 0 24 24" role="img" aria-
   + '<path d="m8.7 11.9 2.3 2.3 4.3-4.6" stroke="#2fe08a" stroke-width="1.8" '
   + 'stroke-linecap="round" stroke-linejoin="round"></path></svg>';
 
+/* ── what may and may not be uploaded ────────────────────────────
+   Duck Creek asked for an explicit non-PII definition. A paragraph of good
+   intentions is not one, so this is the definition and the page enforces it:
+   a file whose name matches any of these is refused at the drop, before it is
+   read, before it is classified and before anything leaves the browser.
+
+   Name matching cannot see inside a file, so it is a guard rather than a
+   guarantee, and the copy says so. What it does catch is the ordinary way
+   this goes wrong, which is somebody dragging the whole claim folder in. */
+const PII_PATTERNS = [
+  [/\bssn\b|social.?security/i, 'a social security number'],
+  [/\bdob\b|date.?of.?birth|birth.?cert/i, 'a date of birth'],
+  [/passport|driver.?licen[cs]e|\bdl\b.?scan|national.?id\b/i, 'an identity document'],
+  [/medical|clinical|diagnos|patient|\bphi\b|health.?record/i, 'medical information'],
+  [/\bcard\b.?(number|scan)|credit.?card|\bcvv\b|\biban\b|bank.?statement|routing/i,
+    'payment or bank details'],
+  [/payroll|\bw-?2\b|\bp60\b|salary|compensation.?statement/i, 'payroll information'],
+  [/claimant.?(detail|record|list)|policyholder.?list|customer.?list/i,
+    'a list of named individuals'],
+];
+const piiRisk = (name) => {
+  for(const [re, what] of PII_PATTERNS) if(re.test(name)) return what;
+  return null;
+};
+
+/* What the deployment promises about uploaded evidence. A platform tier can
+   be configured so files never leave the browser at all, which is a different
+   and much stronger statement than a retention period. */
+const evidenceMode = () => (S.policy && S.policy.evidence) || 'email';
+const retentionDays = () => (S.policy && S.policy.retentionDays) || 30;
+
 function privacyBlock(context){
   const d = el('div','privacy');
   const t = el('div','pt');
   const common = 'Your work email, phone and company name are held by Proxyview and used only to '
     + 'return your report and to contact you about the cases you run. We do not sell or share them. '
     + 'Ask us to delete anything we hold at <code>' + CONTACT + '</code>.';
-  const files = '<b>What happens to your file.</b> The documents you upload are transmitted to '
-    + 'Proxyview and emailed to the assurance team. Send the smallest set that answers the '
-    + 'question: loss location, loss date, peril and the reported description are usually enough, '
-    + 'and none of those carry claimant personal data. Do not upload medical records, identity '
-    + 'documents or payment details. ';
+  const files = evidenceMode() === 'none'
+    ? '<b>What happens to your file.</b> Nothing leaves this browser. On this deployment the '
+      + 'assessment runs where you are and evidence files are never transmitted to Proxyview, '
+      + 'so there is nothing for us to hold, retain or delete. '
+      + '<b>What not to upload.</b> Identity documents, medical records, payment or bank '
+      + 'details, payroll information, or any list of named individuals. Files whose names '
+      + 'suggest these are refused before they are read.'
+    : '<b>What happens to your file.</b> The documents you upload are transmitted to '
+      + 'Proxyview and emailed to the assurance team, and are kept for ' + retentionDays()
+      + ' days. Send the smallest set that answers the question: loss location, loss date, '
+      + 'peril and the reported description are usually enough, and none of those carry '
+      + 'claimant personal data. '
+      + '<b>What not to upload.</b> Identity documents, medical records, payment or bank '
+      + 'details, payroll information, or any list of named individuals. Files whose names '
+      + 'suggest these are refused before they are read.';
   t.innerHTML = '<b>Privacy and security.</b> ' + (context === 'upload' ? '' : '') + common
     + (context === 'upload' ? '<br><br>' + files : '');
   d.innerHTML = SHIELD;
@@ -960,10 +1044,11 @@ function viewGate(){
     +'the cases you run. Nothing is shared outside Proxyview.</p>'
     +'<div class="field"><label for="gvert">YOUR INDUSTRY</label>'
       +'<select id="gvert" name="industry" required>'
-      + VERTS.map(k=>'<option value="'+k+'">'+esc(VERT[k].label)+'</option>').join('')
+      + VERTS.map(k=>'<option value="'+k+'"'+(k===S.vert?' selected':'')+'>'
+          +esc(VERT[k].label)+'</option>').join('')
       +'</select>'
       +'<span class="tiny" id="verthint" style="display:block;margin-top:6px">'
-      + esc(VERT[DEFAULT_VERT].who)+'</span></div>'
+      + esc(vert(S.vert).who)+'</span></div>'
     +'<div class="field"><label for="gmail">WORK EMAIL</label>'
       +'<input id="gmail" name="email" type="email" autocomplete="email" placeholder="you@yourcompany.com" required>'
       +'<span class="err" id="e-gmail" hidden></span></div>'
@@ -1050,6 +1135,758 @@ function viewGate(){
       company:$('#gcompany').value.trim(),industry:vert(S.vert).label};
     S.identity=identity(S.profile.email);
 
+    /* A work address is claimed here and proved in the next step. Until the
+       code comes back the workspace does not open, which is what stops one
+       person spending another organisation's allowance. */
+    const held = S.identity && restoreFor(S.identity);
+    const stillValid = held && held.token && held.tokenExp > Date.now();
+    if(S.verifyReady && !stillValid){ startVerify(); return; }
+    openWorkspace();
+  };
+}
+
+/* ── disposition ─────────────────────────────────────────────────
+   What the client says about a result, recorded beside it.
+
+   The rule that governs all of this: a disposition never changes an assessed
+   outcome. The engine reports what the evidence establishes; the client
+   reports what they make of it; the report carries both and says which is
+   which. A product that let a client mark a failed control as passed would be
+   worth nothing to the committee reading it, and the whole value of the
+   assurance record is that it cannot be argued into a different shape.
+
+   The vocabulary is deliberately about what the client is ASSERTING rather
+   than about re-grading the evidence. Every option below describes a position
+   a reviewer can defend in a meeting. */
+const CTRL_DISPOSITIONS = [
+  ['', 'Not dispositioned', ''],
+  ['reviewed', 'Reviewed, no action',
+    'A person has read this and nothing needs doing. The weakest claim on the list, '
+    + 'and the only one a bulk action is allowed to make.'],
+  ['accepted', 'Accepted',
+    'The result stands and needs no further action.'],
+  ['evidence-exists', 'Evidence exists, not supplied',
+    'The evidence for this control exists in our records and was not in the pack sent.'],
+  ['compensating', 'Compensating control',
+    'A different control in our process covers this, and we can name it.'],
+  ['remediated', 'Remediated since',
+    'The gap was real at the time and the process has changed since.'],
+  ['accepted-risk', 'Accepted as a known risk',
+    'The gap is real, we know about it, and we have decided to carry it.'],
+  ['contested', 'Contested',
+    'We disagree with this result and will say why.'],
+];
+const CASE_DISPOSITIONS = [
+  ['', 'Not dispositioned', ''],
+  ['accepted', 'Accepted',
+    'We accept the assurance conclusion on this case as it stands.'],
+  ['accepted-exceptions', 'Accepted with exceptions',
+    'We accept the conclusion apart from the controls we have dispositioned separately.'],
+  ['evidence-follows', 'Evidence to follow',
+    'Material exists that was not in the pack; we will resubmit.'],
+  ['remediated', 'Remediated',
+    'The issues are real and the process has since changed.'],
+  ['contested', 'Contested',
+    'We do not accept the conclusion and have set out why.'],
+  ['second-review', 'Referred for second review',
+    'Sent to another reviewer inside our organisation before we take a position.'],
+];
+const dispLabel = (list, k) => (list.find(x=>x[0]===k) || list[0])[1];
+
+/* ── severity, and what a bulk action may touch ──────────────────
+   A reviewer working through forty-eight controls needs to clear the noise to
+   reach the three rows that matter. That is a real need and this serves it.
+   It is also the one feature here that could quietly damage the record, so
+   the rules are narrow and stated on screen rather than buried.
+
+   A control's severity is the materiality of the finding that raised it. A
+   control with no finding is as severe as its own result makes it.
+
+   THE EXCLUSION WORTH UNDERSTANDING: a control that could not be evaluated is
+   never swept. Those rows are the ones where only the client knows whether
+   the evidence exists and was left out of the pack or does not exist at all,
+   and that distinction is the most useful thing the client can tell us. A
+   bulk action that dismissed them would erase the signal in the moment it was
+   easiest to collect. They stay for individual disposition. */
+function severityOf(a, code){
+  const f = (a.findings||[]).find(x => (x.controls||[]).some(c => c.code === code));
+  if(f) return f.mat;                       /* M1 .. M4 */
+  const c = (a.controls||[]).find(x => x.code === code);
+  if(!c) return 'none';
+  if(c.r === 'Pass') return 'none';
+  if(c.r === 'Pass with limitation') return 'M1';
+  /* The two reasons a control could not be evaluated are not equally the
+     client's business. Where the evidence was missing from the pack, only the
+     client knows whether it exists, and that answer is the most useful thing
+     they can give us: it never gets swept. Where Lens implements no test, the
+     client has nothing to contribute and the row is noise to them. */
+  if(c.r === 'Unable to determine') return c.naReason === 'untested' ? 'untested' : 'hold';
+  return 'hold';
+}
+const SWEEPABLE = new Set(['M1', 'untested']);
+function lowSeverityCodes(a){
+  return (a.controls||[])
+    .map(c => c.code)
+    .filter(code => SWEEPABLE.has(severityOf(a, code)))
+    /* Never overwrite a disposition somebody wrote by hand. A bulk action
+       that flattened considered work would be worse than no bulk action. */
+    .filter(code => !((a.disp||{})[code] && (a.disp[code].v || a.disp[code].n)));
+}
+function heldBack(a){
+  const hold = (a.controls||[]).filter(c => severityOf(a, c.code) === 'hold').length;
+  const material = (a.controls||[]).filter(c => {
+    const sv = severityOf(a, c.code);
+    return sv !== 'none' && sv !== 'hold' && !SWEEPABLE.has(sv);
+  }).length;
+  return {hold, material};
+}
+
+/* Applied as one batch so it can be taken back in one move, and so the log
+   records a sweep as a sweep rather than as forty individual judgements. */
+function bulkReview(a){
+  const codes = lowSeverityCodes(a);
+  if(!codes.length) return {applied:0};
+  const batch = 'b' + Date.now().toString(36);
+  a.disp = a.disp || {};
+  codes.forEach(code=>{
+    a.disp[code] = {v:'reviewed', n:'', bulk:batch,
+      by:(S.verified&&S.verified.email)||null, at:new Date().toISOString()};
+  });
+  a.lastBatch = batch;
+  saveState();
+  logEvent('case.dispositioned',
+    a.c.id+' · bulk reviewed · '+codes.length+' low-severity controls');
+  return {applied:codes.length, batch};
+}
+function undoBulk(a){
+  if(!a.lastBatch || !a.disp) return 0;
+  let n=0;
+  Object.keys(a.disp).forEach(code=>{
+    if(a.disp[code].bulk === a.lastBatch){ delete a.disp[code]; n++; }
+  });
+  a.lastBatch = null;
+  saveState();
+  if(n) logEvent('case.dispositioned', a.c.id+' · bulk undone · '+n+' controls');
+  return n;
+}
+const dispWhat = (list, k) => (list.find(x=>x[0]===k) || list[0])[2];
+
+/* Dispositions live with the case, in this browser. That is deliberate and is
+   the same decision as the assessments themselves: Proxyview holds no case
+   data, and a free-text note a reviewer writes about their own book is case
+   data. What does reach the server is the FACT of a disposition — who, which
+   case, which control, which value — so the audit log is complete without the
+   note travelling with it. Sharing dispositions between colleagues needs
+   per-tenant storage and belongs with it. */
+function setCtrlDisposition(a, code, value, note){
+  a.disp = a.disp || {};
+  const was = (a.disp[code] && a.disp[code].v) || '';
+  a.disp[code] = {v:value, n:(note||'').slice(0,600),
+    by:(S.verified&&S.verified.email)||null, at:new Date().toISOString()};
+  if(!value && !(note||'').trim()) delete a.disp[code];
+  saveState();
+  if(was !== value){
+    logEvent('case.dispositioned', a.c.id+' · '+code+' · '+(value||'cleared'));
+  }
+  return a.disp[code];
+}
+function setCaseDisposition(a, value, note){
+  const was = (a.caseDisp && a.caseDisp.v) || '';
+  a.caseDisp = {v:value, n:(note||'').slice(0,1200),
+    by:(S.verified&&S.verified.email)||null, at:new Date().toISOString()};
+  if(!value && !(note||'').trim()) a.caseDisp = null;
+  saveState();
+  if(was !== value){
+    logEvent('case.dispositioned', a.c.id+' · case · '+(value||'cleared'));
+  }
+  return a.caseDisp;
+}
+const mayDisposition = () => !(S.can && S.can.run === false);
+
+/* Counts for the case panel and the portfolio. `evidenceExists` is pulled out
+   on its own because it is the number that matters most: it separates a
+   control that could not be tested because the evidence was missing from the
+   pack from one that could not be tested because the evidence does not
+   exist. Those two look identical in the assessment and are completely
+   different problems. */
+function dispositionSummary(list){
+  const out = {total:0, byValue:{}, evidenceExists:0, contested:0, cases:0,
+    inBulk:0, considered:0};
+  list.forEach(a=>{
+    const d=a.disp||{};
+    Object.keys(d).forEach(code=>{
+      const v=d[code].v;
+      if(!v) return;
+      out.total++;
+      out.byValue[v]=(out.byValue[v]||0)+1;
+      if(v==='evidence-exists') out.evidenceExists++;
+      if(v==='contested') out.contested++;
+      if(d[code].bulk) out.inBulk++; else out.considered++;
+    });
+    if(a.caseDisp && a.caseDisp.v) out.cases++;
+  });
+  return out;
+}
+
+/* An inline editor rather than a modal: the control being dispositioned stays
+   on screen with its basis and its result, which is the context a reviewer
+   needs to write anything sensible. */
+function openDisposition(a, code){
+  const tr = $('[data-ctrl="'+code+'"]');
+  if(!tr) return;
+  if(tr.nextElementSibling && tr.nextElementSibling.classList.contains('dispedit')){
+    tr.nextElementSibling.remove(); return;
+  }
+  const cur=(a.disp||{})[code]||{v:'',n:''};
+  const row=document.createElement('tr');
+  row.className='dispedit';
+  const td=document.createElement('td');
+  td.colSpan=6;
+  row.append(td);
+
+  const box=el('div','dispbox');
+  box.append(el('div','h-sm','Disposition for '+code));
+  const sel=el('select','');
+  sel.id='dispsel-'+code;
+  sel.innerHTML=CTRL_DISPOSITIONS.map(([k,l])=>'<option value="'+k+'"'
+    +(cur.v===k?' selected':'')+'>'+esc(l)+'</option>').join('');
+  const what=el('p','tiny'); what.id='dispwhat-'+code;
+  what.textContent=dispWhat(CTRL_DISPOSITIONS, cur.v);
+  sel.onchange=()=>{ what.textContent=dispWhat(CTRL_DISPOSITIONS, sel.value); };
+  const ta=el('textarea',''); ta.id='dispnote-'+code; ta.rows=3;
+  ta.placeholder='Why, in your words. A reviewer reading this in three months should not need to ask.';
+  ta.value=cur.n||'';
+  ta.style.marginTop='8px';
+  const bar=el('div','row'); bar.style.marginTop='10px';
+  const save=el('button','btn primary','Save disposition'); save.id='dispsave-'+code;
+  save.onclick=()=>{
+    setCtrlDisposition(a, code, sel.value, ta.value);
+    render();
+  };
+  const cancel=el('button','btn ghost','Cancel');
+  cancel.onclick=()=>row.remove();
+  bar.append(save, cancel);
+  box.append(sel, what, ta, bar);
+  box.append(el('p','tiny','Recorded against your case in this browser. The fact that you '
+    +'dispositioned it, and to what, is written to your workspace audit log. What you type '
+    +'here is not sent to Proxyview.'));
+  td.append(box);
+  tr.after(row);
+  sel.focus();
+}
+
+/* The case-level position, beside the assessed outcome and never instead of
+   it. The two pills sit next to each other on purpose. */
+function caseDispositionPanel(a){
+  const c=el('div','card'); c.style.marginTop='18px'; c.id='casedisp';
+  c.append(el('div','h-md','Your disposition on this case'));
+  const cur=a.caseDisp||{v:'',n:''};
+  const head=el('div','row'); head.style.margin='8px 0 4px';
+  head.append(el('div','pill '+OCLASS[a.outcome],
+    '<span class="dot bg-'+OCLASS[a.outcome]+'"></span>Assessed: '+esc(a.outcome)));
+  head.append(el('div','pill '+(cur.v?(cur.v==='contested'?'warn':'neu'):'neu'),
+    'Your position: '+esc(cur.v?dispLabel(CASE_DISPOSITIONS,cur.v):'not dispositioned')));
+  c.append(head);
+  c.append(el('p','tiny','The assessed outcome is what the evidence established and does not '
+    +'change. Your disposition is recorded beside it and travels with the report.'));
+
+  if(!mayDisposition()){
+    c.append(el('p','tiny','Read-only members can read a disposition and cannot set one.'));
+    return c;
+  }
+  const sel=el('select',''); sel.id='casedispsel'; sel.style.marginTop='10px';
+  sel.innerHTML=CASE_DISPOSITIONS.map(([k,l])=>'<option value="'+k+'"'
+    +(cur.v===k?' selected':'')+'>'+esc(l)+'</option>').join('');
+  const what=el('p','tiny'); what.id='casedispwhat';
+  what.textContent=dispWhat(CASE_DISPOSITIONS, cur.v);
+  sel.onchange=()=>{ what.textContent=dispWhat(CASE_DISPOSITIONS, sel.value); };
+  const ta=el('textarea',''); ta.id='casedispnote'; ta.rows=3; ta.style.marginTop='8px';
+  ta.placeholder='Your position on this case, for whoever reads the report next.';
+  ta.value=cur.n||'';
+  const bar=el('div','row'); bar.style.marginTop='10px';
+  const save=el('button','btn primary','Save'); save.id='casedispsave';
+  save.onclick=()=>{ setCaseDisposition(a, sel.value, ta.value); render(); };
+  bar.append(save);
+  if(cur.v || cur.n){
+    const meta=el('span','tiny');
+    meta.style.marginLeft='4px';
+    meta.textContent='Last set '+(a.caseDisp.by? 'by '+a.caseDisp.by+' ':'')
+      +(a.caseDisp.at? a.caseDisp.at.slice(0,16).replace('T',' ')+'Z':'');
+    bar.append(meta);
+  }
+  c.append(sel, what, ta, bar);
+  return c;
+}
+
+/* ── the workspace: roles, members and the audit log ─────────────
+   Three roles, because Duck Creek named three and because a fourth would be
+   a support conversation without a job. The page renders what the server
+   says the member may do; the server refuses anything else regardless of
+   what the page allows, since a page can be edited in a browser and a
+   function cannot. */
+const ORG = '/api/org';
+const ROLE_LABELS = {admin:'Admin', reviewer:'Reviewer', readonly:'Read-only'};
+const ROLE_WHAT = {
+  admin:'Runs cases, manages members and roles, reads and exports the audit log.',
+  reviewer:'Runs cases and reads reports. Cannot change members or roles.',
+  readonly:'Reads reports. Cannot upload, run or export.'
+};
+const RETENTIONS = [7,30,90,180,365];
+
+function orgCall(payload){
+  if(!S.token) return Promise.resolve(null);
+  return fetch(ORG, {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({...payload, token:S.token})})
+    .then(r=>r.json().then(d=>({ok:r.ok, status:r.status, d})))
+    .catch(()=>null);
+}
+
+/* Client-side actions the server did not witness. Recorded as reported rather
+   than observed, which the log says beside each entry. */
+function logEvent(event, detail){
+  if(!S.token) return Promise.resolve(null);
+  return orgCall({action:'log', event, detail});
+}
+
+function loadOrg(){
+  return orgCall({action:'state'}).then(r=>{
+    if(r && r.ok){
+      S.org=r.d;
+      if(r.d.you){ S.role=r.d.you.role; S.can=r.d.you.can||{}; }
+      if(r.d.policy) S.policy=r.d.policy;
+      DIAG.org={domain:r.d.domain, role:S.role, members:(r.d.members||[]).length,
+        retentionDays:r.d.retentionDays};
+      renderRail();
+    }
+    return r;
+  });
+}
+
+function viewAdmin(){
+  const v=$('#view'); v.innerHTML='';
+  $('#crumb').innerHTML='WORKSPACE / ADMINISTRATION';
+  const o=S.org;
+  v.append(el('div','eyebrow','WORKSPACE'));
+  v.append(el('h1','h-lg', o ? esc(o.domain) : 'Your workspace'));
+  if(!o){
+    v.append(el('p','sub','Loading the workspace…'));
+    loadOrg().then(()=>{ if(S.view==='admin') render(); });
+    return;
+  }
+  v.append(el('p','sub','Everyone here signs in with a verified work address. '
+    +'You are '+esc(ROLE_LABELS[S.role]||S.role)+'. '+esc(ROLE_WHAT[S.role]||'')));
+
+  /* ── packaging, stated rather than implied ── */
+  const pk=el('div','card'); pk.style.marginTop='18px';
+  pk.append(el('div','h-md','Packaging'));
+  const pkr=el('div','tstep');
+  pkr.innerHTML='<div class="tk">'+esc(o.plan==='free'?'FREE':String(o.plan).toUpperCase())+'</div>'
+    +'<div class="tv"><b>'+o.used+' of '+o.limit+' closed accounts used.</b> '
+    +'Five closed accounts run free for the whole organisation, not per person. '
+    +'After the fifth, the workspace stays open and reports stay readable; '
+    +'running more needs a cycle.</div>';
+  pk.append(pkr);
+  const up=el('button','btn primary','Talk to us about a cycle');
+  up.id='adminupgrade'; up.style.marginTop='12px';
+  up.onclick=()=>{ S.view='paywall'; render(); };
+  pk.append(up);
+  v.append(pk);
+
+  /* ── members ── */
+  const mc=el('div','card'); mc.style.marginTop='16px';
+  mc.append(el('div','h-md','Members'));
+  mc.append(el('p','tiny','A person joins by verifying an address on an allowed domain. '
+    +'The first person to verify becomes the admin.'));
+  const tbl=el('div',''); tbl.style.marginTop='10px'; tbl.id='memberlist';
+  tbl.className='memberlist';
+  (o.members||[]).forEach(mem=>{
+    const r=el('div','tstep');
+    const opts=Object.keys(ROLE_LABELS).map(k=>'<option value="'+k+'"'
+      +(mem.role===k?' selected':'')+'>'+ROLE_LABELS[k]+'</option>').join('');
+    r.innerHTML='<div class="tk">'+esc(mem.email)
+      +(mem.you?' <span class="chip">YOU</span>':'')+'</div>'
+      +'<div class="tv"></div>';
+    const ctl=r.querySelector('.tv');
+    if(S.can && S.can.manage){
+      const sel=el('select','');
+      sel.innerHTML=opts; sel.style.maxWidth='150px';
+      sel.setAttribute('aria-label','Role for '+mem.email);
+      sel.onchange=()=>{
+        orgCall({action:'setRole', email:mem.email, role:sel.value}).then(res=>{
+          if(res && res.ok){ S.org=res.d; render(); }
+          else { sel.value=mem.role; note(res && res.d && res.d.error || 'that did not save'); }
+        });
+      };
+      const row=el('div','row'); row.style.cssText='gap:8px;justify-content:flex-end';
+      row.append(sel);
+      if(!mem.you){
+        /* Two clicks rather than a browser dialog: the page never opens one,
+           and a second click on a button that has changed its own label is a
+           clearer confirmation than a modal nobody reads. */
+        const rm=el('button','btn ghost','Remove');
+        rm.dataset.armed='no';
+        rm.onclick=()=>{
+          if(rm.dataset.armed!=='yes'){
+            rm.dataset.armed='yes';
+            rm.textContent='Confirm remove';
+            setTimeout(()=>{ rm.dataset.armed='no'; rm.textContent='Remove'; }, 5000);
+            return;
+          }
+          orgCall({action:'removeMember', email:mem.email}).then(res=>{
+            if(res && res.ok){ S.org=res.d; render(); }
+            else note(res && res.d && res.d.error || 'that did not save');
+          });
+        };
+        row.append(rm);
+      }
+      ctl.append(row);
+    } else {
+      ctl.textContent=ROLE_LABELS[mem.role]||mem.role;
+    }
+    tbl.append(r);
+  });
+  mc.append(tbl);
+  v.append(mc);
+
+  if(S.can && S.can.manage){
+    /* ── domain allowlist ── */
+    const ac=el('div','card'); ac.style.marginTop='16px';
+    ac.append(el('div','h-md','Domains allowed to join'));
+    ac.append(el('p','tiny','Only addresses on these domains can verify into this workspace. '
+      +esc(o.domain)+' cannot be removed. Add the others your group uses.'));
+    const ta=el('textarea',''); ta.id='allowlist'; ta.rows=3;
+    ta.style.marginTop='10px';
+    ta.value=(o.allow||[]).join('\n');
+    ac.append(ta);
+    const ab=el('button','btn','Save domains'); ab.id='saveallow'; ab.style.marginTop='10px';
+    ab.onclick=()=>{
+      const domains=ta.value.split(/[\s,]+/).map(x=>x.trim()).filter(Boolean);
+      orgCall({action:'setAllow', domains}).then(res=>{
+        if(res && res.ok){ S.org=res.d; render(); note('Domains saved.'); }
+        else note(res && res.d && res.d.error || 'that did not save');
+      });
+    };
+    ac.append(ab);
+    v.append(ac);
+
+    /* ── retention ── */
+    const rc=el('div','card'); rc.style.marginTop='16px';
+    rc.append(el('div','h-md','Retention'));
+    rc.append(el('p','tiny','How long the audit log and this workspace record are kept. '
+      +'Entries older than the window are removed and are not recoverable.'));
+    const sel=el('select',''); sel.id='retention'; sel.style.marginTop='10px';
+    sel.innerHTML=RETENTIONS.map(d=>'<option value="'+d+'"'
+      +(o.retentionDays===d?' selected':'')+'>'+d+' days</option>').join('');
+    sel.onchange=()=>{
+      orgCall({action:'setRetention', days:Number(sel.value)}).then(res=>{
+        if(res && res.ok){ S.org=res.d; render(); note('Retention saved.'); }
+        else { sel.value=o.retentionDays; note(res && res.d && res.d.error || 'that did not save'); }
+      });
+    };
+    rc.append(sel);
+    v.append(rc);
+  }
+
+  /* ── audit log ── */
+  const lc=el('div','card'); lc.style.marginTop='16px'; lc.id='auditcard';
+  lc.append(el('div','h-md','Audit log'));
+  if(!(S.can && S.can.audit)){
+    lc.append(el('p','tiny','The log is visible to an admin.'));
+  } else {
+    lc.append(el('p','tiny','Sign-in, uploads, runs, exports and every administrative change, '
+      +'kept for '+o.retentionDays+' days. Each entry says whether it was observed by the '
+      +'server or reported by a browser.'));
+    const btn=el('button','btn','Load the log'); btn.id='loadaudit'; btn.style.marginTop='10px';
+    const out=el('div',''); out.id='auditout'; out.style.marginTop='12px';
+    btn.onclick=()=>{
+      btn.textContent='Loading…';
+      orgCall({action:'audit'}).then(res=>{
+        btn.textContent='Reload the log';
+        if(!(res && res.ok)){ out.textContent='The log could not be read.'; return; }
+        const ev=(res.d.events||[]).slice().reverse();
+        out.innerHTML='';
+        if(!ev.length){ out.append(el('p','tiny','Nothing recorded yet.')); return; }
+        const dl=el('button','btn ghost','Download as CSV'); dl.id='auditcsv';
+        dl.onclick=()=>downloadAudit(ev);
+        out.append(dl);
+        const list=el('div',''); list.style.marginTop='10px';
+        ev.slice(0,200).forEach(e=>{
+          const r=el('div','tstep');
+          r.innerHTML='<div class="tk">'+esc(e.t.slice(0,19).replace('T',' '))+'Z</div>'
+            +'<div class="tv"><b>'+esc(e.action)+'</b>'
+            +(e.actor?' · '+esc(e.actor):'')
+            +(e.detail?' · '+esc(e.detail):'')
+            +' <span class="chip">'+(e.src==='client'?'REPORTED':'OBSERVED')+'</span></div>';
+          list.append(r);
+        });
+        out.append(list);
+        if(ev.length>200) out.append(el('p','tiny','Showing the most recent 200 of '+ev.length+'.'));
+      });
+    };
+    lc.append(btn, out);
+  }
+  v.append(lc);
+
+  const back=el('button','btn ghost','Back to the workspace'); back.style.marginTop='16px';
+  back.onclick=()=>{ S.view='home'; render(); };
+  v.append(back);
+}
+
+/* A report as plain text, so what leaves is readable anywhere and carries the
+   same chain the screen does: conclusion, domains, findings, controls. */
+function exportText(a){
+  const L=[];
+  L.push('PV-ORA-AR-01 · OPERATIONAL REALITY ASSURANCE REPORT');
+  L.push('');
+  L.push('Case:      '+a.c.id);
+  L.push('Account:   '+a.c.acct+' · '+a.c.subject);
+  L.push('Type:      '+vert(a.c.vert).event);
+  L.push('Outcome:   '+a.outcome+'  ('+a.M+')');
+  if(S.verified) L.push('Run by:    '+S.verified.email+'  · address verified '+S.verified.at);
+  L.push('Library:   ORA v0.1.0 · 48 controls · 40 failure modes');
+  L.push('Exported:  '+new Date().toISOString());
+  L.push('');
+  if(a.caseDisp && (a.caseDisp.v || a.caseDisp.n)){
+    L.push('CLIENT DISPOSITION ON THIS CASE');
+    L.push('   '+dispLabel(CASE_DISPOSITIONS, a.caseDisp.v)
+      +(a.caseDisp.by? '  ('+a.caseDisp.by+', '+String(a.caseDisp.at).slice(0,16).replace('T',' ')+'Z)':''));
+    if(a.caseDisp.n) L.push('   '+a.caseDisp.n);
+    L.push('   The assessed outcome above is unchanged by this disposition.');
+    L.push('');
+  }
+  L.push('1. EXECUTIVE ASSURANCE CONCLUSION');
+  L.push(a.conclusionText || (a.outcome+' at '+a.M+'.'));
+  L.push('');
+  L.push('A control that could not be evaluated is reported as such and never as a pass.');
+  L.push('Absence of evidence is distinguished throughout from evidence of failure.');
+  L.push('');
+  L.push('2. ORA DOMAIN ASSESSMENT');
+  for(const d of 'PTLCNXQA') L.push('   '+d+'  '+a.dom[d]);
+  L.push('');
+  L.push('3. FINDINGS');
+  if(!a.findings.length) L.push('   No finding arose. Every control that could be evaluated passed.');
+  a.findings.forEach(f=>{
+    L.push('   '+f.primary+'  '+f.condition);
+    (f.controls||[]).forEach(c=>L.push('      '+c.code+'  '+c.r+'  '+c.why));
+  });
+  L.push('');
+  L.push('4. CONTROL EVALUATION');
+  L.push('   Result is what the evidence established. Disposition is what the client');
+  L.push('   recorded about it, and never changes the result.');
+  (a.controls||[]).forEach(c=>{
+    const d=(a.disp||{})[c.code];
+    L.push('   '+c.code+'  '+c.r.padEnd(22)+'  '+c.name);
+    if(d && (d.v || d.n)){
+      L.push('        disposition: '+dispLabel(CTRL_DISPOSITIONS, d.v)
+        +(d.bulk? '  [applied in bulk]':'')
+        +(d.by? '  ('+d.by+', '+String(d.at).slice(0,16).replace('T',' ')+'Z)':''));
+      if(d.n) L.push('        note: '+d.n);
+    }
+  });
+  L.push('');
+  L.push('Proxyview · lens.getproxyview.com');
+  return L.join('\n');
+}
+
+function downloadAudit(events){
+  const esc2=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"';
+  const rows=[['time','action','actor','detail','source']]
+    .concat(events.map(e=>[e.t, e.action, e.actor||'', e.detail||'', e.src||'server']));
+  const csv=rows.map(r=>r.map(esc2).join(',')).join('\n');
+  saveFile('lens-audit-'+(S.org&&S.org.domain||'workspace')+'.csv', csv, 'text/csv');
+  logEvent('report.exported','audit log, '+events.length+' entries');
+}
+
+/* One place that turns text into a downloaded file, so an export always
+   behaves the same way and is always recorded. */
+function saveFile(name, text, type){
+  try{
+    const blob=new Blob([text], {type:type+';charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 400);
+    return true;
+  }catch{ return false; }
+}
+
+/* A short line under the rail for the result of an action, so a save that
+   worked and one that did not are told apart without an alert box. */
+function note(msg){
+  const n=$('#quotanote');
+  if(!n) return;
+  n.hidden=false; n.textContent=msg;
+  setTimeout(()=>{ renderRail(); }, 4000);
+}
+
+/* ── verification ────────────────────────────────────────────────
+   A six-digit code to the work address, rather than a link.
+
+   Enterprise mail security opens links in incoming mail before the recipient
+   does: Defender Safe Links, Mimecast and Proofpoint all fetch and follow
+   URLs to check them, so a magic link is routinely spent by a scanner and the
+   person who clicks it a minute later finds it already used. Reading a message
+   does not consume a number, so a code survives that. It also works when the
+   mail lands on a phone while the workspace is open on a desktop, and it needs
+   no callback URL, which matters wherever Lens is embedded in somebody else's
+   platform.
+
+   S.verifyReady is settled by asking the endpoint on load. A deploy without
+   the secret and a mail provider cannot verify anybody, and walking a client
+   into a step that cannot finish would be worse than not offering it. That
+   state is reported in LENS.diag() rather than to the client. */
+const VERIFY = '/api/verify';
+S.verifyReady = false;
+
+function checkVerifyReady(){
+  return fetch(VERIFY, {method:'GET'})
+    .then(r=>r.ok?r.json():null)
+    .then(d=>{
+      S.verifyReady = !!(d && d.configured);
+      if(d && d.policy) S.policy=d.policy;
+      if(d && d.roles) S.roleLabels=d.roles;
+      DIAG.verify = {configured:S.verifyReady, provider:(d&&d.provider)||null,
+        policy:(d&&d.policy)||null};
+      return S.verifyReady;
+    })
+    .catch(()=>{
+      S.verifyReady = false;
+      DIAG.verify = {configured:false, endpoint:'not deployed'};
+      return false;
+    });
+}
+
+function startVerify(){
+  S.codeState={sending:true, error:'', sent:false};
+  S.view='code'; render();
+  fetch(VERIFY, {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'start', email:S.profile.email,
+      company:S.profile.company, phone:S.profile.phone, industry:S.profile.industry})})
+    .then(r=>r.json().then(d=>({ok:r.ok, d})))
+    .then(({ok,d})=>{
+      S.codeState={sending:false, sent:!!ok,
+        error: ok ? '' : (d && d.error ? d.error : 'the code could not be sent'),
+        retryInSec: d && d.retryInSec};
+      render();
+    })
+    .catch(()=>{
+      S.codeState={sending:false, sent:false, error:'the code could not be sent'};
+      render();
+    });
+}
+
+function submitCode(code){
+  S.codeState={...S.codeState, checking:true, error:''};
+  render();
+  return fetch(VERIFY, {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'check', email:S.profile.email, code})})
+    .then(r=>r.json().then(d=>({ok:r.ok, d})))
+    .then(({ok,d})=>{
+      if(ok && d && d.token){
+        S.token=d.token; S.tokenExp=d.expiresAt;
+        S.role=d.role||'reviewer'; S.can=d.can||{};
+        if(d.policy) S.policy=d.policy;
+        S.verified={email:d.email, at:new Date().toISOString(), role:S.role};
+        DIAG.verify={...(DIAG.verify||{}), verified:d.email};
+        openWorkspace();
+        return true;
+      }
+      S.codeState={sending:false, sent:true, checking:false,
+        error:(d && d.error) || 'that code is not right',
+        attemptsLeft: d && d.attemptsLeft, expired: !!(d && d.expired)};
+      render();
+      return false;
+    })
+    .catch(()=>{
+      S.codeState={sending:false, sent:true, checking:false,
+        error:'the code could not be checked'};
+      render();
+      return false;
+    });
+}
+
+function viewCode(){
+  const v=$('#view'); v.innerHTML='';
+  $('#crumb').innerHTML='VERIFY';
+  const st=S.codeState||{};
+  const g=el('div','gate');
+
+  const left=el('div','');
+  left.append(el('div','eyebrow','ONE STEP LEFT'));
+  left.append(el('h1','h-lg','Check your inbox.'));
+  left.append(el('p','sub','We sent a six-digit code to '+esc(S.profile.email)
+    +'. It is good for ten minutes and can be used once.'));
+
+  const c=el('form','card'); c.id='codeform'; c.noValidate=true; c.style.marginTop='18px';
+  c.innerHTML='<div class="h-md">Enter the code</div>'
+    +'<p class="tiny" style="margin:6px 0 14px">Verifying the address is what keeps your '
+    +'organisation’s free cases yours. Nobody else can spend them.</p>'
+    +'<div class="field"><label for="gcode">SIX-DIGIT CODE</label>'
+      +'<input id="gcode" name="code" inputmode="numeric" autocomplete="one-time-code" '
+      +'maxlength="6" placeholder="000000" '
+      +'style="letter-spacing:.42em;font-family:var(--mono);font-size:19px;text-align:center" required>'
+      +'<span class="err" id="e-gcode" hidden></span></div>'
+    +'<button class="btn primary" type="submit" id="codesubmit" style="width:100%">'
+      +(st.checking?'Checking…':'Open the workspace')+'</button>';
+  left.append(c);
+
+  const note=el('div','tiny'); note.style.marginTop='12px'; note.id='codenote';
+  if(st.sending) note.textContent='Sending the code…';
+  else if(st.error){
+    note.innerHTML='<span style="color:var(--danger)">'+esc(st.error)
+      +(typeof st.attemptsLeft==='number' ? ' · '+st.attemptsLeft+' attempt'
+        +(st.attemptsLeft===1?'':'s')+' left' : '')+'</span>';
+  } else note.textContent='It can take a minute to arrive. Check spam if it does not.';
+  left.append(note);
+
+  const row=el('div','row'); row.style.cssText='gap:10px;margin-top:12px;flex-wrap:wrap';
+  const again=el('button','btn ghost','Send another code'); again.id='resend';
+  again.onclick=()=>startVerify();
+  const back=el('button','btn ghost','Use a different address'); back.id='backtogate';
+  back.onclick=()=>{ S.profile=null; S.codeState=null; S.view='gate'; render(); };
+  row.append(again, back); left.append(row);
+
+  const right=el('div','');
+  right.append(el('div','eyebrow','WHY WE ASK'));
+  const k=el('div','card');
+  [['Your five cases stay yours','The allowance belongs to your organisation. Without a verified address anyone could spend it, and you would meet a paywall you never used.'],
+   ['Your report carries who ran it','The assurance report names the verified person and the time, which is what a committee paper needs and what our own control PV-A03 tests for.'],
+   ['No password, ever','Nothing to choose, nothing to reset, and nothing of yours for us to store or lose.']]
+    .forEach(([h,b],i)=>{
+      const r=el('div',''); r.style.marginTop=i?'14px':'0';
+      r.append(el('div','h-sm',h));
+      r.append(el('p','tiny',b));
+      k.append(r);
+    });
+  right.append(k);
+  right.append(el('p','tiny','A code rather than a link, because mail security scanners open links '
+    +'before you do and a link that has been scanned is already spent.'));
+  g.append(left,right); v.append(g);
+
+  const inp=$('#gcode');
+  setTimeout(()=>inp.focus(), 40);
+  /* A code arriving by mail is usually pasted with whatever is around it. */
+  inp.addEventListener('input',()=>{
+    const digits=inp.value.replace(/\D/g,'').slice(0,6);
+    if(inp.value!==digits) inp.value=digits;
+    if(digits.length===6 && !S.codeState?.checking) submitCode(digits);
+  });
+  c.onsubmit=e=>{
+    e.preventDefault();
+    const code=inp.value.replace(/\D/g,'');
+    if(code.length!==6){
+      const err=$('#e-gcode'); err.textContent='Six digits, as sent.'; err.hidden=false;
+      inp.setAttribute('aria-invalid','true'); inp.focus(); return;
+    }
+    submitCode(code);
+  };
+}
+
+/* Everything that happens once the address is known to be theirs. Split out
+   of the submit handler so the verified path and the unverified one cannot
+   drift apart. */
+function openWorkspace(){
+  {
     /* Signing in again from the same organisation reopens that workspace with
        its allowance already spent, rather than handing out a fresh five. */
     const prior=S.identity && restoreFor(S.identity);
@@ -1057,16 +1894,22 @@ function viewGate(){
       S.paid=!!prior.paid;
       S.spent=prior.spent||0;
       if(prior.vert && VERT[prior.vert]) S.vert=prior.vert;
+      if(prior.token && prior.tokenExp > Date.now()){
+        S.token=prior.token; S.tokenExp=prior.tokenExp;
+      }
+      if(prior.verified) S.verified=prior.verified;
       S.cases=(prior.cases||[]).map(x=>x.sample
         ? sample(assess(findSample(x),false))
-        : assess(reviveCase(x.c), !!(x.c&&x.c.live)))
+        : withDisposition(assess(reviveCase(x.c), !!(x.c&&x.c.live)), x))
         .filter(Boolean);
     }
     try{ if(S.identity) localStorage.setItem(STORE+'.last', S.identity.key); }
     catch{ /* storage blocked; the session still works */ }
 
-    /* And the server is asked for the count that actually decides. */
+    /* And the server is asked for the count that actually decides, and for
+       the workspace this member belongs to. */
     askQuota('check');
+    if(S.token) loadOrg();
 
     /* Send the details to Netlify Forms. The client is never held up by this:
        the workspace opens whether or not the post succeeds, and a failure is
@@ -1089,7 +1932,7 @@ function viewGate(){
     if(!S.cases.some(a=>a.sample))
       S.cases.unshift(...samplesFor(S.vert).map(x=>sample(assess(x,false))));
     S.view='home'; render();
-  };
+  }
 }
 
 function viewUpload(){
@@ -1141,6 +1984,8 @@ const MAX_TOTAL = 20 * 1024 * 1024; // and a larger submission overall
 function addFiles(files){
   S.rejected=[];
   files.forEach(f=>{
+    const risk=piiRisk(f.name);
+    if(risk){ S.rejected.push([f.name, 'looks like it carries '+risk+', which this tier does not accept']); return; }
     if(f.size>MAX_FILE){ S.rejected.push([f.name,'over 8 MB']); return; }
     const total=S.dropped.reduce((n,x)=>n+x.size,0)+f.size;
     if(total>MAX_TOTAL){ S.rejected.push([f.name,'would take the case over 20 MB']); return; }
@@ -1237,10 +2082,15 @@ function sendCase(a){
     'Second review: '+(a.review.length?a.review.join('; '):'not required'),
     'Files: '+(a.c.files||[]).join(', ')
   ].join('\n');
+  /* On a platform deployment the files stay where they are. The metadata
+     still reaches Proxyview so the case can be discussed; the evidence does
+     not, which is a stronger promise than any retention period. */
+  const evidence = evidenceMode()==='none' ? [] : (S.pendingFiles||[]);
   postForm('lens-case',{
     email:who.email||'', phone:who.phone||'', company:who.company||'',
-    industry:vert(S.vert).label, case:a.c.id, summary
-  }, S.pendingFiles||[])
+    industry:vert(S.vert).label, case:a.c.id, summary,
+    evidenceHandling: evidenceMode()==='none' ? 'kept in the client browser' : 'attached'
+  }, evidence)
     .then(r=>{ a.delivered=!!(r&&r.ok); })
     .catch(()=>{ a.delivered=false; });
   S.pendingFiles=null;
@@ -1260,6 +2110,7 @@ function runLive(){
       screen:'clean',sharedOrigin:false,vague:false,corroborationRetro:false},
     files:S.dropped.map(f=>f.name)};
   S.pendingFiles=S.dropped.map(f=>f.file).filter(Boolean);
+  logEvent('case.uploaded', S.pendingFiles.length+' files, '+cls.size+' evidence classes');
   S.dropped=[]; S.rejected=[];
   runOne(c,true);
 }
@@ -1363,24 +2214,66 @@ function viewReport(){
     : esc(a.c.acct)+' · '+esc(a.c.subject)+' · '+qty(a.c.vert,a.c.exposure)
       +' '+vert(a.c.vert).verb+' · '+vert(a.c.vert).event));
 
+  /* Export is an audited action: Duck Creek named it and it is the one thing
+     a client does that takes material out of the workspace. A read-only
+     member does not get the button, and the server refuses the record if one
+     reports it anyway, which is itself logged. */
+  if(!a.sample && S.can && S.can.export){
+    const ex=el('button','btn ghost','Export this report');
+    ex.id='exportreport'; ex.style.marginTop='10px';
+    ex.onclick=()=>{
+      const text=exportText(a);
+      const ok=saveFile(a.c.id+'-assurance-report.txt', text, 'text/plain');
+      logEvent('report.exported', a.c.id);
+      ex.textContent = ok ? 'Exported' : 'Could not export';
+      setTimeout(()=>{ ex.textContent='Export this report'; }, 2500);
+    };
+    v.append(ex);
+  }
+  if(!a.sample) logEvent('report.opened', a.c.id);
+
+  /* Who ran it, and when. Control PV-A03 in this library tests whether
+     reviewer identity and sign-off are recorded; a platform that asked that
+     question of its clients while recording nothing itself would fail its own
+     control. A sample is ours, so it carries no client identity. */
+  if(!a.sample && S.verified && S.verified.email){
+    const who=el('p','tiny','');
+    who.id='runby';
+    who.innerHTML='Run by <b>'+esc(S.verified.email)+'</b> · address verified '
+      +esc(new Date(S.verified.at).toISOString().slice(0,16).replace('T',' '))+'Z'
+      +' · <span style="color:var(--sig)">PV-A03 satisfied</span>';
+    v.append(who);
+  }
+
   /* 1. conclusion */
   const s1=el('div','card'); s1.style.marginTop='18px';
   s1.append(el('div','h-md','1. Executive assurance conclusion'));
   const fails=a.findings.filter(f=>f.result==='Fail');
-  const na=a.controls.filter(c=>c.r===R.NA).length;
+  /* Two reasons, and the conclusion used to blame the first for both. A
+     control Lens implements no test for was never a shortcoming of the
+     evidence the client supplied, and saying so was inaccurate in the
+     direction that flatters us. */
+  const naEvidence=a.controls.filter(c=>c.r===R.NA && c.naReason!=='untested').length;
+  const naUntested=a.controls.filter(c=>c.r===R.NA && c.naReason==='untested').length;
+
   const VERDICT={
     [OUTCOMES[0]]:'establishes the proposition the decision relied upon',
     [OUTCOMES[1]]:'supports the proposition the decision relied upon, with limitations that reduce assurance',
     [OUTCOMES[2]]:'does not establish the proposition the decision relied upon to the required threshold',
     [OUTCOMES[3]]:'contains a contradiction that has to be resolved before the record can be relied upon'
   };
-  const p1=el('p','',
-    'The evidence on file '+VERDICT[a.outcome]+'. '
+  a.conclusionText = 'The evidence on file '+VERDICT[a.outcome]+'. '
     +(fails.length
       ? fails.length+' control'+(fails.length===1?'':'s')+' failed: '+fails.map(f=>f.control).join(', ')+'. '
       : 'No control failed. ')
-    +(na? na+' control'+(na===1?'':'s')+' could not be evaluated on the evidence supplied. ' : '')
-    +'Assurance impact is assessed at '+a.M+'.');
+    +(naEvidence? naEvidence+' control'+(naEvidence===1?'':'s')
+      +' could not be evaluated on the evidence supplied. ' : '')
+    +(naUntested? naUntested+' further control'+(naUntested===1?'':'s')
+      +' could not be evaluated because Lens implements no test for '
+      +(naUntested===1?'it':'them')+' yet, which is a limit of this assessment rather than of '
+      +'the evidence. ' : '')
+    +'Assurance impact is assessed at '+a.M+'.';
+  const p1=el('p','', a.conclusionText);
   p1.style.marginTop='8px'; s1.append(p1);
   s1.append(el('p','tiny', a.outcome===OUTCOMES[2]
     ? 'An insufficiently supported outcome means the evidence reviewed did not establish the claim to the '
@@ -1388,6 +2281,8 @@ function viewReport(){
     : 'A control that could not be evaluated is reported as such and never as a pass. Absence of evidence '
       +'is distinguished throughout from evidence of failure.'));
   v.append(s1);
+
+  if(!a.sample) v.append(caseDispositionPanel(a));
 
   /* 5. domains */
   const s5=el('div','card'); s5.style.marginTop='14px';
@@ -1419,6 +2314,36 @@ function viewReport(){
     const inner=el('div','inner');
     const cond=el('p','',esc(f.condition)); cond.style.marginBottom='12px'; inner.append(cond);
     inner.append(traceBlock(f,a));
+
+    /* A finding is a view over controls, so its disposition is the
+       disposition of those controls rather than a second, separate one that
+       could disagree with them. */
+    if(!a.sample){
+      const codes=(f.controls||[]).map(c=>c.code);
+      const db=el('div',''); db.className='finddisp'; db.style.marginTop='12px';
+      db.append(el('div','lbl','YOUR DISPOSITION'));
+      codes.forEach(code=>{
+        const cur=(a.disp||{})[code];
+        const r=el('div','tstep');
+        r.innerHTML='<div class="tk">'+esc(code)+'</div><div class="tv">'
+          +(cur&&cur.v
+            ? '<b>'+esc(dispLabel(CTRL_DISPOSITIONS,cur.v))+'</b>'
+              +(cur.n?' \u00b7 '+esc(cur.n):'')
+            : '<span style="color:var(--fog)">not dispositioned</span>')+'</div>';
+        if(mayDisposition()){
+          const b=el('button','linkbtn', cur&&cur.v?'Change':'Disposition');
+          b.onclick=()=>{
+            /* Appendix B is where the editor lives, so the reviewer lands
+               beside the basis for the result rather than away from it. */
+            const tr=$('[data-ctrl="'+code+'"]');
+            if(tr){ tr.scrollIntoView({block:'center'}); openDisposition(a, code); }
+          };
+          r.querySelector('.tv').append(b);
+        }
+        db.append(r);
+      });
+      inner.append(db);
+    }
     d.append(inner); s4.append(d);
   });
   v.append(s4);
@@ -1443,14 +2368,78 @@ function viewReport(){
   const sb=el('div','card'); sb.style.marginTop='14px';
   sb.append(el('div','h-md','Appendix B. Control evaluation'));
   const wrap=el('div','scroll'); wrap.style.marginTop='10px';
+  /* The assessed result and what the client makes of it sit in adjacent
+     columns and never in the same one. A disposition is an assertion by the
+     client; the result is what the evidence established. Collapsing the two
+     would destroy the only thing the report is for. */
+  sb.append(el('p','tiny','The result column is what the evidence established. The disposition '
+    +'column is what you say about it, and it never changes the result.'));
+
+  /* Clearing the low-severity rows in one move, so a reviewer reaches the
+     three that matter. What it will not touch is said here rather than
+     discovered afterwards. */
+  if(!a.sample && mayDisposition()){
+    const low=lowSeverityCodes(a), held=heldBack(a);
+    const bar=el('div','sweep'); bar.id='sweepbar';
+    const row=el('div','row');
+    if(low.length){
+      const b=el('button','btn','Mark all low-severity as reviewed ('+low.length+')');
+      b.id='sweep';
+      b.onclick=()=>{ const r=bulkReview(a); if(r.applied) render(); };
+      row.append(b);
+    } else {
+      row.append(el('span','tiny','No low-severity control is waiting for a disposition.'));
+    }
+    if(a.lastBatch){
+      const u=el('button','btn ghost','Undo that'); u.id='sweepundo';
+      u.onclick=()=>{ undoBulk(a); render(); };
+      row.append(u);
+    }
+    bar.append(row);
+    const why=el('p','tiny'); why.id='sweepwhy'; why.style.marginTop='8px';
+    const parts=[];
+    if(held.material) parts.push(held.material+' control'+(held.material===1?'':'s')
+      +' above M1, which need a position of their own');
+    if(held.hold) parts.push(held.hold+' that could not be evaluated, where only you know '
+      +'whether the evidence exists and was left out of the pack');
+    parts.push('anything you have already dispositioned by hand');
+    why.textContent='Reviewed, no action is the weakest claim on the list and the only one this '
+      +'applies. It covers controls that passed with a limitation and controls Lens implements '
+      +'no test for, which are ours rather than yours. It leaves alone: '+parts.join('; ')+'.';
+    bar.append(why);
+    sb.append(bar);
+  }
   const rows=a.controls.map(c=>{
     const cl=c.r==='Pass'?'ok':c.r==='Fail'?'bad':c.r==='Unable to determine'?'neu':'warn';
-    return '<tr><td class="mono" style="font-size:11px">'+c.code+'</td><td>'+esc(c.name)+'</td>'
+    const d=(a.disp||{})[c.code];
+    const dv=d&&d.v||'';
+    /* A swept row says so. A committee reading this should be able to tell a
+       considered disposition from one applied in bulk, and hiding the
+       difference would be the dishonest version of this feature. */
+    const chip = dv
+      ? '<span class="pill '+(dv==='contested'?'warn':'neu')+'">'+esc(dispLabel(CTRL_DISPOSITIONS,dv))+'</span>'
+        +(d.bulk?' <span class="chip">IN BULK</span>':'')
+        +(d.n?'<div class="tiny" style="margin-top:4px;color:var(--mist)">'+esc(d.n)+'</div>':'')
+      : '<span style="color:var(--ghost)">—</span>';
+    return '<tr data-ctrl="'+c.code+'"><td class="mono" style="font-size:11px">'+c.code+'</td>'
+      +'<td>'+esc(c.name)+'</td>'
       +'<td>'+c.d+'</td><td><span class="pill '+cl+'">'+esc(c.r)+'</span></td>'
-      +'<td style="color:var(--mist);font-size:11.5px">'+esc(c.why)+'</td></tr>';
+      +'<td style="color:var(--mist);font-size:11.5px">'+esc(c.why)+'</td>'
+      +'<td class="dispcell">'+chip+'</td></tr>';
   }).join('');
   wrap.innerHTML='<table><thead><tr><th>Control</th><th>Name</th><th>Dom</th><th>Result</th>'
-    +'<th>Basis</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    +'<th>Basis</th><th>Disposition</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  /* A sample is ours, so there is nothing for a client to disposition on it. */
+  if(!a.sample && mayDisposition()){
+    wrap.querySelectorAll('tr[data-ctrl]').forEach(tr=>{
+      const code=tr.getAttribute('data-ctrl');
+      const cell=tr.querySelector('.dispcell');
+      const b=el('button','linkbtn', (a.disp&&a.disp[code]&&a.disp[code].v) ? 'Change' : 'Disposition');
+      b.style.marginTop='6px';
+      b.onclick=()=>openDisposition(a, code);
+      cell.append(b);
+    });
+  }
   sb.append(wrap); v.append(sb);
 
   /* actions */
@@ -1490,6 +2479,49 @@ function portfolioPanel(){
   });
   wrap.append(g);
 
+  /* What the client has said about their own book, aggregated. The
+     evidence-exists count is given its own line because it answers a
+     different question from everything else here: how much of the untestable
+     population was a packaging problem rather than a real gap. That number
+     decides whether the next conversation is about process or about the
+     evidence pack. */
+  const ds=dispositionSummary(set);
+  if(ds.total || ds.cases){
+    const dc=el('div','card'); dc.style.marginTop='14px'; dc.id='dispsummary';
+    dc.append(el('div','h-sm','Your dispositions'));
+    dc.append(el('p','tiny','What you have recorded against these cases. Dispositions sit beside '
+      +'the assessed outcomes and do not change them.'));
+    const g=el('div','grid'); g.style.cssText='grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-top:10px';
+    [['Controls dispositioned', ds.total, ''],
+     ['Cases dispositioned', ds.cases, ''],
+     ['Evidence exists, not supplied', ds.evidenceExists,
+      'These were untestable because the evidence was missing from the pack, not because it does not exist.'],
+     ['Contested', ds.contested, ''],
+     ['Considered one by one', ds.considered,
+      'Dispositioned individually rather than swept as low-severity.']]
+      .forEach(([k,n,why])=>{
+        const b=el('div','card'); b.style.padding='14px';
+        b.innerHTML='<div class="lbl">'+esc(k.toUpperCase())+'</div>'
+          +'<div style="font-size:25px;font-weight:800;font-variant-numeric:tabular-nums;'
+          +'margin-top:6px">'+n+'</div>'
+          +(why?'<div class="tiny" style="margin-top:6px">'+esc(why)+'</div>':'');
+        g.append(b);
+      });
+    dc.append(g);
+    const rows=Object.entries(ds.byValue).sort((x,y)=>y[1]-x[1]);
+    if(rows.length){
+      const t=el('div',''); t.style.marginTop='12px';
+      rows.forEach(([v,n])=>{
+        const r=el('div','tstep');
+        r.innerHTML='<div class="tk">'+n+'</div><div class="tv">'
+          +esc(dispLabel(CTRL_DISPOSITIONS,v))+'</div>';
+        t.append(r);
+      });
+      dc.append(t);
+    }
+    wrap.append(dc);
+  }
+
   const freq={};
   set.forEach(a=>a.raised.forEach(f=>{ freq[f]=(freq[f]||0)+1; }));
   const ent=Object.entries(freq).sort((x,y)=>y[1]-x[1]);
@@ -1521,6 +2553,24 @@ function viewPaywall(){
   w.append(el('p','sub','Your five free cases are complete and stay open. Cycles are priced against '
     +'the size of the book and how often you want it re-baselined, so we set that up with you rather '
     +'than at a checkout. Tell us how you would rather pay and we will come back the same day.'));
+
+  /* What the free tier was and what comes after it, stated rather than left
+     to be inferred from a meter. Duck Creek asked for clear packaging and a
+     buyer reading this screen is exactly who needs it. */
+  const pk=el('div','card'); pk.style.marginTop='18px'; pk.id='packaging';
+  pk.append(el('div','h-md','What you had, and what comes next'));
+  [['Free','Five closed accounts for the whole organisation, not per person. No card, no '
+    +'expiry. Reports already run stay readable and exportable after the fifth.'],
+   ['Cycle','An agreed number of closed accounts over an agreed period, re-baselined quarterly, '
+    +'twice-yearly or annually as you choose. Priced against the size of the book.'],
+   ['What does not change','Verified sign-in, roles, the audit log and the retention window are '
+    +'part of every tier, including the free one.']]
+    .forEach(([k,d])=>{
+      const r=el('div','tstep');
+      r.innerHTML='<div class="tk">'+esc(k.toUpperCase())+'</div><div class="tv">'+esc(d)+'</div>';
+      pk.append(r);
+    });
+  w.append(pk);
 
   const plans=el('div','grid'); plans.style.gridTemplateColumns='repeat(auto-fit,minmax(230px,1fr))';
   plans.style.marginTop='18px';
@@ -1616,12 +2666,22 @@ let quotaSeq = 0;
 
 function askQuota(action){
   if(!S.profile) return Promise.resolve(null);
+  /* The endpoint acts on the organisation named inside the token, never on
+     an address in the body, so a request without one cannot be answered. On
+     a deploy with no verification configured there is no token to send; the
+     page then counts on the device and the diagnostic says so. */
+  if(S.verifyReady && !S.token){
+    S.quotaServer='absent';
+    DIAG.quota={action, endpoint:'no verified session', enforced:false};
+    return Promise.resolve(null);
+  }
   const seq = ++quotaSeq;
   const apply = (fn) => { if(seq === quotaSeq) fn(); };
   return fetch(QUOTA, {method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action, email:S.profile.email,
-      company:S.profile.company, phone:S.profile.phone})})
+    body:JSON.stringify({action, token:S.token,
+      company:S.profile.company, phone:S.profile.phone,
+      industry:S.profile.industry})})
     .then(r=>{
       /* A 404 is not an outage. It means the function was never deployed —
          a configuration state, permanent until someone pushes the file, and
@@ -1630,6 +2690,14 @@ function askQuota(action){
          The two are kept apart so the page does not accuse itself of a fault
          it does not have, and so a prospect is not shown an error on their
          first screen. Either way LENS.diag() reports which it was. */
+      if(r.status === 401){
+        /* The token expired or was never issued. Sending them back to the
+           gate mid-run would lose their work, so the page keeps counting and
+           asks again at the next sign-in. */
+        const e = new Error('the verified session is no longer valid');
+        e.absent = true;
+        throw e;
+      }
       if(r.status === 404){
         const e = new Error('no quota endpoint is deployed at ' + QUOTA);
         e.absent = true;
@@ -1716,15 +2784,31 @@ function serialiseCase(c){
 }
 function reviveCase(o){ return Object.assign({}, o, {classes:new Set(o.classes||[])}); }
 
+/* Puts a stored disposition back on a freshly assessed case. The assessment
+   is always recomputed from the evidence rather than restored, so a library
+   change is picked up; the disposition is the client's and is restored as
+   written. */
+function withDisposition(a, stored){
+  if(stored && stored.disp) a.disp = stored.disp;
+  if(stored && stored.caseDisp) a.caseDisp = stored.caseDisp;
+  return a;
+}
+
 function saveState(){
   if(!S.profile || !S.identity) return;
   try{
     localStorage.setItem(storeKey(S.identity), JSON.stringify({
       v:2, at:Date.now(), profile:S.profile, paid:!!S.paid, spent:S.spent||0,
-      vert:S.vert,
+      vert:S.vert, token:S.token||null, tokenExp:S.tokenExp||0,
+      verified:S.verified||null,
+      /* Dispositions hang off the assessment rather than the case, so they
+         have to be written alongside it or a reload loses what the reviewer
+         wrote. They stay in this browser: a note about a client's own book is
+         case data, and Proxyview holds none of it. */
       cases:S.cases.map(a=>a.sample
         ? {sample:true, sid:a.c.id}
-        : {sample:false, c:serialiseCase(a.c)})
+        : {sample:false, c:serialiseCase(a.c),
+           disp:a.disp||null, caseDisp:a.caseDisp||null})
     }));
   }catch{ /* a private window or blocked site data; the session still works */ }
 }
@@ -1763,9 +2847,11 @@ function restoreState(){
     S.paid=!!d.paid;
     S.spent=d.spent||0;
     if(d.vert && VERT[d.vert]) S.vert=d.vert;
+    if(d.token && d.tokenExp > Date.now()){ S.token=d.token; S.tokenExp=d.tokenExp; }
+    if(d.verified) S.verified=d.verified;
     S.cases=(d.cases||[]).map(x=>x.sample
       ? sample(assess(findSample(x), false))
-      : assess(reviveCase(x.c), !!(x.c&&x.c.live)));
+      : withDisposition(assess(reviveCase(x.c), !!(x.c&&x.c.live)), x));
     return true;
   }catch{
     S.profile=null; S.cases=[]; S.paid=false; S.identity=null; S.spent=0;
@@ -1787,10 +2873,14 @@ const own = () => S.cases.filter(a => !a.sample);
 
 /* ── router ──────────────────────────────────────────────────────── */
 function render(){
-  if(!S.profile) S.view='gate';
+  /* The code step happens before there is a profile, so it is the one view
+     that must survive the guard below. */
+  if(!S.profile && S.view!=='code') S.view='gate';
   saveState();
   renderRail();
   if(S.view==='gate') viewGate();
+  else if(S.view==='code') viewCode();
+  else if(S.view==='admin') viewAdmin();
   else if(S.view==='home') viewHome();
   else if(S.view==='upload') viewUpload();
   else if(S.view==='run') viewRun();
@@ -1798,7 +2888,22 @@ function render(){
   else if(S.view==='paywall') viewPaywall();
   window.scrollTo({top:0,behavior:'instant'});
 }
-$('#newcase').onclick=()=>{ S.view=atLimit()?'paywall':'upload'; closeRail(); render(); };
+$('#newcase').onclick=()=>{
+  /* A read-only member is told why rather than shown a screen that will be
+     refused when they reach the end of it. */
+  if(S.can && S.can.run===false){
+    note('Read-only members cannot run a case. An admin can change your role.');
+    closeRail(); return;
+  }
+  S.view=atLimit()?'paywall':'upload'; closeRail(); render();
+};
+$('#openadmin').onclick=()=>{
+  S.view='admin'; closeRail(); render();
+  /* Read it again on the way in. The copy held from sign-in goes stale the
+     moment a colleague joins or a case is run, and a management screen that
+     disagrees with the meter beside it is worse than a slow one. */
+  loadOrg().then(()=>{ if(S.view==='admin') render(); });
+};
 
 /* On a phone the rail is a drawer. It opens from the control in the header,
    closes on picking a case so the report is not left behind it, and closes on
@@ -1835,17 +2940,28 @@ $('#copycontact').onclick=async()=>{
 /* A returning client lands back in their workspace rather than at the gate. */
 if(restoreState()) S.view='home';
 
+/* Whether this deploy can verify an address at all. Asked once, on load, so
+   the gate never walks somebody into a step that cannot finish. */
+checkVerifyReady();
+
 window.LENS = {
-  diag(){ return {build:'build 2026-09-25 03:00Z', endpoint:DIAG.endpoint, posts:DIAG.posts,
+  diag(){ return {build:'build 2026-09-25 08:02Z', endpoint:DIAG.endpoint, posts:DIAG.posts,
     /* Whether the allowance is actually being enforced, and by what. This is
        the question to ask the page after a deploy. */
     quota:DIAG.quota || {endpoint:'not called yet'},
+    verify:DIAG.verify || {configured:'not checked yet'},
+    verified:S.verified || null,
     industry:vert(S.vert).label,
     undelivered:!!S.undelivered, profile:S.profile,
     cases:S.cases.length, mine:own().length, stored:(()=>{
       try{ return !!localStorage.getItem(STORE); }catch{ return 'unavailable'; }
     })()}; },
   forget(){ forgetState(); return 'workspace cleared'; },
+  /* The workspace as the server describes it, and the session it is read
+     with. Both are here so a support conversation and a test can ask the
+     same questions the page asks. */
+  org(){ return S.org || null; },
+  token(){ return S.token || null; },
   get state(){ return S; }
 };
 

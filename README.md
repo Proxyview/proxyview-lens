@@ -17,13 +17,18 @@ encoding, viewport and favicon, and its styles and script are inline. Netlify
 publishes the repository root as it stands, so what is committed is exactly
 what a browser receives. Push those five and the site is live.
 
-A sixth file buys one thing more:
+Five more files buy sign-in, roles, the audit log and the enforced limit:
 
-    netlify/functions/quota.mjs    the five-case limit
+    netlify/functions/verify.mjs          the six-digit code and the session
+    netlify/functions/org.mjs             members, roles, allowlist, retention, log
+    netlify/functions/quota.mjs           the five-case limit
+    netlify/functions/lib/identity.mjs    tokens, keys and code hashing
+    netlify/functions/lib/org.mjs         the organisation record and the log
 
-Without it the page still works, but the free allowance cannot be enforced —
-`/api/quota` returns 404, the page falls back to its own count, and anyone can
-clear their browser and start again. Push it when you want the limit real.
+Without them the page still works and the gate falls back to the unverified
+form, but the free allowance cannot be enforced and the two defects above stay
+open. Push all three together; `quota.mjs` without `verify.mjs` refuses every
+request, which is the correct behaviour and not a useful state to deploy.
 
 A 404 there is silent to the client on purpose. It means the function was never
 deployed, which is a configuration state rather than an outage, and nothing a
@@ -114,6 +119,262 @@ restating it, so a new vertical is checked without editing a test.
 
 The chosen industry is stored with the workspace, sent with every form
 submission, and survives a return visit.
+
+## Sign-in
+
+A six-digit code to the work address. No password.
+
+**Why a code and not a magic link.** Enterprise mail security opens links in
+incoming mail before the recipient does — Microsoft Defender Safe Links,
+Mimecast and Proofpoint all fetch and follow URLs to check them — so a magic
+link is routinely spent by a scanner and the person who clicks it a minute
+later finds it already used. Reading a message does not consume a number, so a
+code survives that. A code also works when the mail lands on a phone while the
+workspace is open on a desktop, and it needs no callback URL, which matters
+wherever Lens is embedded inside another platform.
+
+### What it closed
+
+The allowance endpoint used to act on whatever address a caller typed. Two
+things followed, both real rather than theoretical:
+
+- anyone could post a consume for another organisation's domain five times and
+  exhaust their allowance, so a prospect met a paywall on their first visit;
+- anyone could post a check for a named domain and read how many cases that
+  organisation had run.
+
+Both existed because the address was asserted and never verified. Every quota
+request now carries a token issued by `/api/verify`, and the organisation acted
+on comes from inside the token rather than from the request body — so a
+well-formed request naming somebody else's domain still reaches its own record.
+
+### Environment variables
+
+Set these in Netlify under Site configuration → Environment variables:
+
+    LENS_SECRET        a long random string; signs the session tokens
+    RESEND_API_KEY     or POSTMARK_TOKEN — whichever mail provider you use
+    LENS_FROM          optional, e.g. "Proxyview Lens <no-reply@getproxyview.com>"
+
+Generate the secret with `openssl rand -base64 48`. Changing it signs everyone
+out, which is the intended way to revoke every session at once.
+
+**A deploy missing either the secret or a mail provider cannot verify anybody.**
+The page asks `/api/verify` on load and falls back to the old unverified gate
+rather than walking a client into a step that cannot finish. That state is
+reported in `LENS.diag().verify`, never to the client.
+
+### Properties worth keeping
+
+The code is never returned in any response. It is stored as an HMAC, not in
+the clear, so a reader of the store cannot sign in as anybody. It is good once
+and for ten minutes, five wrong attempts burn it, and three requests per
+address per fifteen minutes is the ceiling on sending. Signatures are compared
+without leaking through timing. Sessions last twelve hours, so a client who
+comes back the same day is not asked again.
+
+### What it does not do
+
+This is email verification and a single factor. It is not multi-factor, and it
+should never be described as though it were. Enterprise SSO, roles and
+per-tenant isolation are a separate tier — see the security posture note.
+
+## Roles, the audit log and the workspace
+
+Three roles, because three is what a platform review asks for and a fourth is
+a support conversation without a job.
+
+| Role | Can | Cannot |
+|---|---|---|
+| Admin | Run cases, manage members and roles, set the domain allowlist and retention, read and export the audit log | — |
+| Reviewer | Run cases, read reports, export a report | Change members, roles or settings; read the log |
+| Read-only | Read reports | Upload, run or export |
+
+The first person to verify an address at an organisation becomes its Admin.
+Everyone after them joins as a Reviewer until the Admin says otherwise. A
+workspace cannot be left without an Admin, and an Admin cannot remove
+themselves.
+
+**Authority is checked on the server for every action.** The page renders what
+the session says the member may do, but a read-only member who edits the page
+in their browser still cannot spend the allowance or change a role: the
+functions refuse it and record the attempt.
+
+### Domain allowlist
+
+An organisation decides which mail domains may join it. The founding domain is
+always on the list and cannot be removed, which is what stops an Admin locking
+their own group out in one click. Free mailboxes are refused outright — no
+organisation is ever founded on one — in the page and again in the function,
+because the page can be skipped.
+
+### Rate limits and lockouts
+
+Three codes per address per fifteen minutes. Five wrong attempts burn a code.
+Three burnt codes lock the address for thirty minutes. The send limit bounds
+how much mail an attacker can cause; the lockout bounds how many codes they
+can grind through.
+
+### Audit log
+
+Sign-in, blocked sign-in, lockouts, case runs, uploads, exports and every
+administrative change, kept for the retention window and downloadable as CSV
+by an Admin.
+
+Every entry records **whether it was observed or reported**. Sign-in, role
+changes and the allowance are seen by the server and marked `OBSERVED`. An
+upload or an export happens in a browser and is reported by it, so those are
+marked `REPORTED`. Saying which is which is the same discipline this product
+applies to a client's own evidence, and a log that blurred the two would be
+worth less than one that admits the difference.
+
+A read-only member who reports an upload or an export is recorded as refused
+rather than ignored.
+
+## Disposition
+
+A client records what they make of a result, at two levels, and one rule
+governs both: **a disposition never changes an assessed outcome.** The engine
+reports what the evidence established. The client reports what they make of
+it. The report carries both and says which is which. A product that let a
+client mark a failed control as passed would be worth nothing to the committee
+reading the report, and the only value the record has is that it cannot be
+argued into a different shape.
+
+### At the control level
+
+Every row in Appendix B takes a disposition and a note:
+
+| Disposition | What the client is asserting |
+|---|---|
+| Accepted | The result stands and needs no further action |
+| Evidence exists, not supplied | The evidence is in our records and was not in the pack sent |
+| Compensating control | A different control in our process covers this, and we can name it |
+| Remediated since | The gap was real at the time and the process has changed |
+| Accepted as a known risk | The gap is real, we know, and we have decided to carry it |
+| Contested | We disagree with this result and will say why |
+
+The vocabulary describes a position a reviewer can defend in a meeting rather
+than a re-grading of the evidence.
+
+**Evidence exists, not supplied is the one that earns its place.** In the
+assessment, a control that could not be tested because the evidence was
+missing from the pack looks identical to one that could not be tested because
+the evidence does not exist. Those are completely different problems and only
+the client can tell them apart. The portfolio counts that disposition on its
+own line, because the number decides whether the next conversation is about
+process or about the evidence pack.
+
+### At the case level
+
+Accepted · Accepted with exceptions · Evidence to follow · Remediated ·
+Contested · Referred for second review, with a note.
+
+The assessed outcome and the client's position sit in adjacent pills on the
+report and never in the same one.
+
+### Clearing the low-severity rows
+
+Forty-eight controls is a lot to walk through to reach the three that matter,
+so one button marks the low-severity ones reviewed. Four rules keep it from
+damaging the record.
+
+**It applies the weakest claim available.** Reviewed, no action, which says a
+person read it and nothing needs doing. A bulk action is never allowed to make
+a stronger assertion than that.
+
+**It never touches a control whose evidence was missing from the pack.** This
+is the rule worth understanding. A control that could not be evaluated has two
+quite different reasons behind it, and until now they were indistinguishable:
+
+- the client's pack was short, and **only the client knows** whether the
+  evidence exists elsewhere — the most useful thing they can tell us, and
+  sweeping it away would destroy the signal at the moment it is cheapest to
+  collect;
+- **Lens implements no test** for that control, which is our gap and nothing
+  the client can act on.
+
+The engine now records which, as a field rather than in prose. Only the second
+is swept. In the seed corpus that is about three rows a case, against seven
+that stay for the client to answer.
+
+**It never overwrites a disposition written by hand**, and a swept row is
+marked `IN BULK` on screen and `[applied in bulk]` in the export, so a
+committee can tell a considered disposition from one applied in a sweep. The
+portfolio counts the two separately.
+
+**It can be undone in one move.** The sweep is applied as a batch and the undo
+removes exactly that batch, leaving hand-written dispositions alone.
+
+Nothing about a sweep changes an assessed outcome or a control result. There
+are tests for both.
+
+### A correction this exposed
+
+The executive conclusion used to say that *n* controls "could not be evaluated
+on the evidence supplied" and counted both reasons in that number. For a
+control Lens implements no test for, that sentence blamed the client's evidence
+for our gap — inaccurate, and in the direction that flatters us. The conclusion
+now reports the two separately and says plainly that the second is a limit of
+the assessment rather than of the evidence.
+
+### Where a disposition lives
+
+With the case, in the client's browser. That is the same decision as the
+assessments themselves: Proxyview holds no case data, and a note a reviewer
+writes about their own book is case data.
+
+What reaches the server is the **fact** of a disposition — who, which case,
+which control, which value — so the audit log is complete without the note
+travelling with it. Those entries are marked `REPORTED` rather than
+`OBSERVED`, because a browser reported them.
+
+Sharing dispositions between colleagues needs per-tenant storage and belongs
+with it, in the enterprise tier.
+
+On restore the assessment is always recomputed from the evidence, so a library
+change is picked up; the disposition is the client's and is restored exactly
+as written.
+
+A sample carries no disposition, because a sample is ours. A read-only member
+can read a disposition and cannot set one.
+
+## Data rules
+
+**What must not be uploaded**, stated rather than implied: identity documents,
+medical records, payment or bank details, payroll information, or any list of
+named individuals. A file whose name matches one of these is refused at the
+drop — before it is read, before it is classified, and before anything leaves
+the browser. Name matching cannot see inside a file, so it is a guard rather
+than a guarantee, and the page says so.
+
+**Retention** defaults to 30 days and an Admin can set 7, 30, 90, 180 or 365.
+It governs the audit log and the workspace record. Entries past the window are
+removed and are not recoverable.
+
+**Evidence handling** is a deployment choice:
+
+    LENS_EVIDENCE=email   (default)  files are transmitted and emailed to the
+                                     assurance team, kept for the retention window
+    LENS_EVIDENCE=none               files never leave the browser; only case
+                                     metadata reaches Proxyview
+
+Set `none` for a platform deployment. It is a stronger statement than any
+retention period, and the privacy panel changes to say so.
+
+**Tenant isolation.** Assessments run in the client's browser and case data is
+never transmitted. What is held server-side is one record per organisation —
+the usage count, the members and their roles, the allowlist and the retention
+setting — plus that organisation's audit log, each under a key derived from
+the verified mail domain. A request reaches only the record its own token
+names; the organisation is never taken from the request body.
+
+## Packaging
+
+Five closed accounts free, for the whole organisation rather than each person.
+No card and no expiry. After the fifth the workspace stays open and reports
+stay readable and exportable; running more needs a cycle. Stated on the meter,
+on the paywall and in the workspace, so a buyer does not have to infer it.
 
 ## The free allowance
 
