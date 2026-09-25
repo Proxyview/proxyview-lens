@@ -25,6 +25,23 @@ Without it the page still works, but the free allowance cannot be enforced —
 `/api/quota` returns 404, the page falls back to its own count, and anyone can
 clear their browser and start again. Push it when you want the limit real.
 
+A 404 there is silent to the client on purpose. It means the function was never
+deployed, which is a configuration state rather than an outage, and nothing a
+client can act on — showing them a server error on their first screen would be
+false. A function that is deployed and failing is different, and the page does
+say so. To tell which you have, open the console and run `LENS.diag()`:
+
+    quota.endpoint === 'live'                        counting, limit enforced
+    quota.endpoint === 'not deployed'                the file is not pushed
+    quota.endpoint === 'deployed but not counting'   reachable, Blobs is not
+    quota.enforced                                   the only thing that matters
+
+The function resolves `@netlify/blobs` at call time rather than importing it at
+the top. A static import that cannot resolve takes the whole function down
+before any code runs, and the endpoint then answers 404 — indistinguishable
+from never having been deployed. This way a missing dependency names itself in
+the response.
+
 ### What went wrong before
 
 `netlify.toml` used to declare `command = "node tools/build-site.mjs"` and
@@ -59,6 +76,44 @@ fresh clone; Playwright covers the same journey.
 
 `npm install` is needed for the tests and for nothing else. Netlify never runs
 it: the build uses Node builtins only, so a deploy installs nothing.
+
+## Industries
+
+A construction lender and a property underwriter do not recognise each other's
+evidence, so a sample drawn from the wrong book teaches nothing. The gate asks
+which industry the client is in, and from then on they see that industry and no
+other: their own two closed accounts, their own file names, their own words for
+the thing being assured, and their own units.
+
+| Industry | Sample pair | The account is a | Quantity |
+|---|---|---|---|
+| Construction finance | CF-1001, CF-1002 | construction draw | money |
+| Insurance — pre-bind and property | PB-2001, PB-2002 | pre-bind property survey | money |
+| Insurance — claims and parametric | CM-3001, CM-3002 | property damage claim | money |
+| Real-world assets | RW-4001, RW-4002 | collateral attestation | money |
+| Carbon and environmental | CB-5001, CB-5002 | MRV monitoring period | tCO2e |
+| Supply chain and EUDR | SC-6001, SC-6002 | due-diligence statement | tonnes |
+| Industrial and field operations | IN-7001, IN-7002 | field work order | money |
+
+Each pair is one account that holds and one that does not. A client shown only
+clean results learns nothing about what a finding looks like, and the second of
+each pair fails for a reason that industry actually meets — an ungoverned
+channel on a draw, a survey stale at binding, photographs eleven kilometres from
+the insured location, reused evidence on an attestation, a monitoring period
+resting on the operator's own meter readings, a consignment whose invoice does
+not reconcile to the declared quantity, a work order with no prior baseline.
+
+The carbon case is deliberate: Proxyview authenticates the site, not the meter,
+so a period standing on meter readings alone is exactly the gap that product
+should report rather than pass.
+
+To add an industry, add an entry to `VERT` and two `mk()` rows in `SAMPLES`.
+Everything else follows — the gate option, the preview, the vocabulary, the
+upload prompt, the contact placeholder. The suites read the config rather than
+restating it, so a new vertical is checked without editing a test.
+
+The chosen industry is stored with the workspace, sent with every form
+submission, and survives a return visit.
 
 ## The free allowance
 

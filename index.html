@@ -278,6 +278,7 @@ input[aria-invalid="true"]{border-color:var(--danger)}
   <input type="email" name="email">
   <input type="tel" name="phone">
   <input type="text" name="company">
+  <input type="text" name="industry">
   <input type="text" name="bot-field">
 </form>
 <form name="lens-case" data-netlify="true" netlify-honeypot="bot-field"
@@ -285,6 +286,7 @@ input[aria-invalid="true"]{border-color:var(--danger)}
   <input type="email" name="email">
   <input type="tel" name="phone">
   <input type="text" name="company">
+  <input type="text" name="industry">
   <input type="text" name="case">
   <textarea name="summary"></textarea>
   <input type="file" name="evidence" multiple>
@@ -294,6 +296,7 @@ input[aria-invalid="true"]{border-color:var(--danger)}
   <input type="email" name="email">
   <input type="tel" name="phone">
   <input type="text" name="company">
+  <input type="text" name="industry">
   <input type="text" name="route">
   <textarea name="message"></textarea>
   <input type="text" name="bot-field">
@@ -364,7 +367,7 @@ input[aria-invalid="true"]{border-color:var(--danger)}
       <div class="spacer"></div>
       <div class="chip" id="libchip">ORA library v0.1.0</div>
       <div class="chip">48 controls · 40 failure modes</div>
-      <div class="chip" id="buildchip" title="The build this page was deployed from">build 2026-09-25 00:54Z</div>
+      <div class="chip" id="buildchip" title="The build this page was deployed from">build 2026-09-25 03:00Z</div>
     </header>
     <div class="body" id="view"></div>
   </div>
@@ -499,37 +502,170 @@ function classify(name){
   return 'EV-01';
 }
 
-/* ── the sample book: three closed accounts with real field data ─── */
-function mk(id,acct,parcel,exposure,docAmount,ageDays,o){
+/* ── the sample book, by industry ─────────────────────────────────
+   A construction lender and a property underwriter do not recognise each
+   other's evidence. A draw request put in front of a claims team teaches
+   nothing about claims, and the vocabulary is wrong in every line. So each
+   industry carries its own two closed accounts, its own file names and its
+   own words, and a client is only ever shown the pair from their own book.
+
+   The seven are the verticals the revenue model is built on. Each pair is
+   one account that holds and one that does not, because a client who sees
+   only clean results learns nothing about what a finding looks like. */
+const VERT = {
+  construction:{
+    label:'Construction finance',
+    who:'Draw administration against a construction loan',
+    event:'construction draw', claim:'claimed construction milestone completed',
+    subject:'Parcel', verb:'released', unit:'money', book:'closed draws',
+    drop:'inspection reports, site photographs, invoices, draw requests, workflow logs, sign-offs, prior observations',
+    files:['site_photos_milestone.jpg','inspection_report.pdf','inspector_credential.json',
+      'assignment_record.csv','server_timestamp_log.txt','gps_track.kml','parcel_record.pdf',
+      'prior_inspection_may.pdf','independent_survey.pdf','contractor_invoice.pdf',
+      'loan_workflow_log.csv','credit_officer_signoff.pdf']},
+  prebind:{
+    label:'Insurance — pre-bind and property',
+    who:'Property condition established before a risk is bound',
+    event:'pre-bind property survey', claim:'claimed property condition at binding',
+    subject:'Risk', verb:'insured', unit:'money', book:'bound risks',
+    drop:'surveyor reports, property photographs, schedules of values, deed records, underwriting workflow logs, sign-offs, prior surveys',
+    files:['property_survey_photos.jpg','surveyor_report.pdf','surveyor_credential.json',
+      'assignment_record.csv','server_timestamp_log.txt','gps_track.kml','deed_record.pdf',
+      'prior_survey_march.pdf','independent_engineer_report.pdf','schedule_of_values.pdf',
+      'underwriting_workflow_log.csv','underwriter_signoff.pdf']},
+  claims:{
+    label:'Insurance — claims and parametric',
+    who:'Loss events and the field evidence a settlement rested on',
+    event:'property damage claim', claim:'claimed loss event occurred at the insured location',
+    subject:'Policy', verb:'settled', unit:'money', book:'closed claims',
+    drop:'FNOL photographs, adjuster reports, policy schedules, repair estimates, claims workflow logs, sign-offs, prior condition surveys',
+    files:['fnol_photos.jpg','adjuster_report.pdf','adjuster_credential.json',
+      'assignment_record.csv','server_timestamp_log.txt','gps_track.kml','policy_schedule.pdf',
+      'prior_condition_survey.pdf','noaa_storm_record.pdf','repair_estimate.pdf',
+      'claims_workflow_log.csv','adjuster_signoff.pdf']},
+  rwa:{
+    label:'Real-world assets',
+    who:'Attestation that tokenised collateral exists as represented',
+    event:'collateral attestation', claim:'claimed asset exists in the represented state',
+    subject:'Asset', verb:'attested', unit:'money', book:'closed attestations',
+    drop:'custodian reports, asset photographs, asset registers, independent valuations, custody workflow logs, trustee sign-offs, prior attestations',
+    files:['asset_photos.jpg','custodian_report.pdf','custodian_credential.json',
+      'assignment_record.csv','server_timestamp_log.txt','gps_track.kml','asset_register.pdf',
+      'prior_attestation.pdf','independent_valuation.pdf','holding_statement.pdf',
+      'custody_workflow_log.csv','trustee_signoff.pdf']},
+  carbon:{
+    label:'Carbon and environmental',
+    who:'Monitoring periods behind a credited reduction',
+    event:'MRV monitoring period', claim:'claimed abatement activity took place at the project site',
+    subject:'Project', verb:'reported', unit:'tCO2e', book:'closed monitoring periods',
+    drop:'monitoring reports, site photographs, project boundary files, meter exports, MRV workflow logs, verifier sign-offs, prior monitoring periods',
+    files:['site_photos_monitoring.jpg','mrv_report.pdf','verifier_credential.json',
+      'assignment_record.csv','server_timestamp_log.txt','plot_geolocation.geojson',
+      'project_boundary_record.pdf','prior_monitoring_period.pdf',
+      'satellite_reference_imagery.tif','meter_readings.csv','mrv_workflow_log.csv',
+      'verifier_signoff.pdf']},
+  supplychain:{
+    label:'Supply chain and EUDR',
+    who:'Due-diligence statements on commodity origin',
+    event:'due-diligence statement', claim:'claimed commodity originated at the declared plot',
+    subject:'Plot', verb:'declared', unit:'tonnes', book:'closed consignments',
+    drop:'due-diligence statements, plot photographs, geolocation files, commercial invoices, traceability logs, sign-offs, prior harvest records',
+    files:['plot_photos.jpg','due_diligence_statement.pdf','field_agent_credential.json',
+      'assignment_record.csv','server_timestamp_log.txt','plot_geolocation.geojson',
+      'plot_registry_record.pdf','prior_harvest_record.pdf','forest_cover_reference.tif',
+      'commercial_invoice.pdf','traceability_log.csv','compliance_officer_signoff.pdf']},
+  industrial:{
+    label:'Industrial and field operations',
+    who:'Field work orders closed against an asset',
+    event:'field work order', claim:'claimed maintenance work was completed on the asset',
+    subject:'Asset', verb:'authorised', unit:'money', book:'closed work orders',
+    drop:'technician reports, work photographs, asset tag records, parts invoices, CMMS workflow logs, supervisor sign-offs, prior service records',
+    files:['work_photos.jpg','technician_report.pdf','technician_credential.json',
+      'assignment_record.csv','server_timestamp_log.txt','gps_track.kml','asset_tag_record.pdf',
+      'prior_service_record.pdf','independent_condition_survey.pdf','parts_invoice.pdf',
+      'cmms_workflow_log.csv','supervisor_signoff.pdf']}
+};
+const VERTS = Object.keys(VERT);
+const DEFAULT_VERT = 'construction';
+const vert = v => VERT[v] || VERT[DEFAULT_VERT];
+
+/* Quantities are not all money. A carbon period is measured in tonnes of
+   CO2 equivalent and a consignment in tonnes, so a dollar sign there would
+   be simply wrong. */
+function qty(v,n){
+  const u=vert(v).unit;
+  if(u==='money') return money(n);
+  return n.toLocaleString(undefined,{maximumFractionDigits:0})+' '+(u==='tCO2e'?'tCO2e':'t');
+}
+
+function mk(v,id,acct,subject,exposure,docAmount,ageDays,o){
   o=o||{};
-  return {id,acct,parcel,exposure,docAmount,ageDays,
-    claim:{subject:parcel,event:'claimed construction milestone completed',loc:true,window:true,
-      quantity:exposure,freshness:14,tolerancePct:5,offsetM:o.offsetM||0},
+  const V=VERT[v];
+  return {id,acct,subject,exposure,docAmount,ageDays,vert:v,
+    claim:{subject,event:V.claim,loc:true,window:true,
+      quantity:exposure,freshness:o.freshness||14,tolerancePct:5,offsetM:o.offsetM||0},
     classes:new Set(o.classes||['EV-01','EV-03','EV-04','EV-06','EV-07','EV-08','EV-09','EV-10','EV-12','EV-15','EV-16']),
     f:{governed:o.governed!==false,trustedTime:o.trustedTime!==false,reused:!!o.reused,
        screen:o.screen||'clean',sharedOrigin:!!o.sharedOrigin,vague:!!o.vague,
        corroborationRetro:!!o.corroborationRetro},
-    files:o.files||['site_photos_milestone.jpg','inspection_report.pdf','inspector_credential.json',
-      'assignment_record.csv','server_timestamp_log.txt','gps_track.kml','parcel_record.pdf',
-      'prior_inspection_may.pdf','independent_survey.pdf','contractor_invoice.pdf',
-      'loan_workflow_log.csv','credit_officer_signoff.pdf']};
+    files:o.files||V.files};
 }
+
+/* Two per industry: the first holds, the second does not, and the second
+   fails for a reason that industry actually meets. */
 const SAMPLES = [
-  mk('DE-1001','ACC-4471','PARCEL-88213',412000,410500,6),
-  mk('DE-1002','ACC-4471','PARCEL-88213',388000,386900,26),
-  mk('DE-1003','ACC-5520','PARCEL-44190',1240000,1236000,7,{corroborationRetro:true}),
-  mk('DE-1004','ACC-5520','PARCEL-44190',960000,402000,6,{governed:false,trustedTime:false,
+  mk('construction','CF-1001','ACC-4471','PARCEL-88213',412000,410500,6),
+  mk('construction','CF-1002','ACC-5520','PARCEL-44190',960000,402000,6,
+    {governed:false,trustedTime:false,
      classes:['EV-01','EV-03','EV-04','EV-06','EV-07','EV-08','EV-09','EV-10','EV-12','EV-16'],
      files:['whatsapp_forward_site.jpeg','contractor_invoice.pdf','inspector_credential.json',
        'assignment_record.csv','server_timestamp_log.txt','gps_track.kml','parcel_record.pdf',
        'prior_inspection.pdf','independent_survey.pdf','credit_officer_signoff.pdf']}),
-  mk('DE-1005','ACC-6318','PARCEL-77021',215000,214100,7,{offsetM:11281,
-     classes:['EV-01','EV-03','EV-04','EV-06','EV-07','EV-08','EV-10','EV-12','EV-15'],
-     files:['site_photos.jpg','inspection_report.pdf','inspector_credential.json','assignment_record.csv',
-       'server_timestamp_log.txt','gps_track.kml','parcel_record.pdf','independent_survey.pdf',
-       'contractor_invoice.pdf','loan_workflow_log.csv']}),
-  mk('DE-1006','ACC-6318','PARCEL-77021',540000,538200,9,{reused:true})
+
+  mk('prebind','PB-2001','POL-90142','RISK-11804',8400000,8378000,9),
+  mk('prebind','PB-2002','POL-90477','RISK-12336',5600000,5588000,41),
+
+  mk('claims','CM-3001','CLM-70551','POL-44821',186000,184900,5),
+  mk('claims','CM-3002','CLM-70884','POL-45109',142000,141200,6,{offsetM:11281}),
+
+  mk('rwa','RW-4001','TRN-3302','ASSET-55018',2750000,2742000,8),
+  mk('rwa','RW-4002','TRN-3417','ASSET-55236',1980000,1974000,11,{reused:true}),
+
+  mk('carbon','CB-5001','PRJ-2208','PROJECT-1140',42500,42300,12),
+  /* The finding here is the one Proxyview must be honest about: the period
+     rests on the operator's own meter readings with no independent
+     observation of the site. Proxyview authenticates the site, not the
+     meter, so a period resting on the meter alone is exactly the gap. */
+  mk('carbon','CB-5002','PRJ-2319','PROJECT-1188',61000,60400,10,
+    {classes:['EV-01','EV-03','EV-04','EV-06','EV-07','EV-08','EV-09','EV-12','EV-15','EV-16'],
+     files:['meter_readings.csv','mrv_report.pdf','verifier_credential.json',
+       'assignment_record.csv','server_timestamp_log.txt','plot_geolocation.geojson',
+       'project_boundary_record.pdf','prior_monitoring_period.pdf','mrv_workflow_log.csv',
+       'verifier_signoff.pdf']}),
+
+  mk('supplychain','SC-6001','CON-8814','PLOT-30217',1240,1236,13),
+  mk('supplychain','SC-6002','CON-8930','PLOT-30455',980,742,9),
+
+  mk('industrial','IN-7001','WO-51207','ASSET-2214',96000,95400,4),
+  mk('industrial','IN-7002','WO-51388','ASSET-2290',128000,127100,7,
+    {classes:['EV-01','EV-03','EV-04','EV-06','EV-07','EV-08','EV-10','EV-12','EV-15','EV-16'],
+     files:['work_photos.jpg','technician_report.pdf','technician_credential.json',
+       'assignment_record.csv','server_timestamp_log.txt','gps_track.kml','asset_tag_record.pdf',
+       'independent_condition_survey.pdf','parts_invoice.pdf','cmms_workflow_log.csv',
+       'supervisor_signoff.pdf']})
 ];
+
+/* The two a given client is shown, and never anyone else's. */
+const samplesFor = v => SAMPLES.filter(s => s.vert === (VERT[v] ? v : DEFAULT_VERT));
+
+/* Stored workspaces name the sample by its id. They used to hold a position
+   in a single flat list, which the industries broke, so an old record falls
+   back to the first sample of the industry it belongs to rather than
+   reopening as somebody else's case. */
+function findSample(x){
+  const byId = x && x.sid && SAMPLES.find(s => s.id === x.sid);
+  return byId || samplesFor(S.vert)[0] || SAMPLES[0];
+}
 
 /* ── the tests ───────────────────────────────────────────────────── */
 const R = {PASS:'Pass',LIM:'Pass with limitation',FAIL:'Fail',NA:'Unable to determine'};
@@ -658,7 +794,8 @@ function assess(c,live){
    Application
    ═══════════════════════════════════════════════════════════════════ */
 const FREE = 5;
-const S = {cases:[], sel:null, view:'gate', dropped:[], nextSample:0, paid:false, profile:null};
+const S = {cases:[], sel:null, view:'gate', dropped:[], nextSample:0, paid:false,
+  profile:null, vert:DEFAULT_VERT};
 const CONTACT = 'hello@getproxyview.com';
 
 const $ = s=>document.querySelector(s);
@@ -710,6 +847,8 @@ function renderRail(){
   const rc=$('#railcount');
   if(rc) rc.textContent = S.paid ? 'Unlimited' : used+' of '+FREE;
   const q=$('#quotanote');
+  /* Strictly false, so a server that is failing says so and a server that
+     was never deployed says nothing. */
   if(q) q.hidden = S.quotaServer !== false || !S.profile;
   $('#metertext').textContent = S.paid
     ? 'Cycle active. Cases run without a limit.'
@@ -819,6 +958,12 @@ function viewGate(){
   f.innerHTML='<div class="h-md">Start your workspace</div>'
     +'<p class="tiny" style="margin:6px 0 14px">We use these to send your report and to reach you about '
     +'the cases you run. Nothing is shared outside Proxyview.</p>'
+    +'<div class="field"><label for="gvert">YOUR INDUSTRY</label>'
+      +'<select id="gvert" name="industry" required>'
+      + VERTS.map(k=>'<option value="'+k+'">'+esc(VERT[k].label)+'</option>').join('')
+      +'</select>'
+      +'<span class="tiny" id="verthint" style="display:block;margin-top:6px">'
+      + esc(VERT[DEFAULT_VERT].who)+'</span></div>'
     +'<div class="field"><label for="gmail">WORK EMAIL</label>'
       +'<input id="gmail" name="email" type="email" autocomplete="email" placeholder="you@yourcompany.com" required>'
       +'<span class="err" id="e-gmail" hidden></span></div>'
@@ -839,10 +984,14 @@ function viewGate(){
 
   const right=el('div','');
   right.append(el('div','eyebrow','WHAT COMES BACK'));
-  const prev=assess(SAMPLES[4],false);
-  const c=el('div','card');
+  /* The second of the industry's pair, because it is the one that carries
+     findings — a preview with nothing wrong in it shows nothing. */
+  const previewCase = () => samplesFor(S.vert)[1] || samplesFor(S.vert)[0];
+  const pc=previewCase();
+  const prev=assess(pc,false);
+  const c=el('div','card'); c.id='previewcard';
   const hd=el('div','row'); hd.style.marginBottom='12px';
-  hd.append(el('div','h-sm','DE-1005'));
+  hd.append(el('div','h-sm',pc.id));
   hd.append(el('div','pill '+OCLASS[prev.outcome],'<span class="dot bg-'+OCLASS[prev.outcome]+'"></span>'+esc(prev.outcome)));
   hd.append(el('div','pill '+matClass(prev.M),prev.M));
   c.append(hd);
@@ -861,9 +1010,25 @@ function viewGate(){
   });
   c.append(fl);
   right.append(c);
-  right.append(el('p','tiny','A real result from a sample closed draw. Every finding opens into the chain '
-    +'from claim to evidence to test to control.'));
+  const caption=el('p','tiny',''); caption.id='previewcaption';
+  caption.innerHTML='A real result from a sample '+esc(vert(S.vert).event)
+    +'. Every finding opens into the chain from claim to evidence to test to control.';
+  right.append(caption);
   g.append(left,right); v.append(g);
+
+  const sel=$('#gvert');
+  sel.value=S.vert;
+  sel.onchange=()=>{
+    S.vert = VERT[sel.value] ? sel.value : DEFAULT_VERT;
+    $('#verthint').textContent = vert(S.vert).who;
+    /* The whole gate is redrawn so the preview, its heading and its caption
+       all come from the same industry. The fields already typed are put
+       back, because losing them to a dropdown would be its own defect. */
+    const keep={email:$('#gmail').value, phone:$('#gphone').value, company:$('#gcompany').value};
+    viewGate();
+    $('#gmail').value=keep.email; $('#gphone').value=keep.phone; $('#gcompany').value=keep.company;
+    $('#gvert').focus();
+  };
 
   const fields=[['gmail',checkEmail],['gphone',checkPhone],['gcompany',checkCompany]];
   const validate=(id,fn,show)=>{
@@ -880,7 +1045,9 @@ function viewGate(){
     e.preventDefault();
     const ok=fields.map(([id,fn])=>validate(id,fn,true)).every(Boolean);
     if(!ok){ const bad=fields.find(([id,fn])=>fn($('#'+id).value)); if(bad) $('#'+bad[0]).focus(); return; }
-    S.profile={email:$('#gmail').value.trim(),phone:$('#gphone').value.trim(),company:$('#gcompany').value.trim()};
+    S.vert = VERT[$('#gvert').value] ? $('#gvert').value : DEFAULT_VERT;
+    S.profile={email:$('#gmail').value.trim(),phone:$('#gphone').value.trim(),
+      company:$('#gcompany').value.trim(),industry:vert(S.vert).label};
     S.identity=identity(S.profile.email);
 
     /* Signing in again from the same organisation reopens that workspace with
@@ -889,9 +1056,11 @@ function viewGate(){
     if(prior){
       S.paid=!!prior.paid;
       S.spent=prior.spent||0;
+      if(prior.vert && VERT[prior.vert]) S.vert=prior.vert;
       S.cases=(prior.cases||[]).map(x=>x.sample
-        ? sample(assess(SAMPLES[x.i>=0?x.i:0],false))
-        : assess(reviveCase(x.c), !!(x.c&&x.c.live)));
+        ? sample(assess(findSample(x),false))
+        : assess(reviveCase(x.c), !!(x.c&&x.c.live)))
+        .filter(Boolean);
     }
     try{ if(S.identity) localStorage.setItem(STORE+'.last', S.identity.key); }
     catch{ /* storage blocked; the session still works */ }
@@ -905,17 +1074,20 @@ function viewGate(){
        their end does not cost you the case. Check Netlify's Forms tab for
        what actually arrived. */
     postForm('lens-signup',{
-      email:S.profile.email, phone:S.profile.phone, company:S.profile.company
+      email:S.profile.email, phone:S.profile.phone, company:S.profile.company,
+      industry:vert(S.vert).label
     })
       .then(r=>{ S.profile.delivered=!!(r&&r.ok); })
       .catch(()=>{ S.profile.delivered=false; });
 
-    /* Two of our own closed draws open with the workspace so it is never
+    /* Two of our own closed accounts open with the workspace so it is never
        empty and so the portfolio view has something to aggregate. They are
-       labelled as samples everywhere they appear and they never touch the
+       drawn from the client's own industry and from no other: a construction
+       lender is shown two draws, a property underwriter two bound risks. They
+       are labelled as samples everywhere they appear and they never touch the
        free allowance, which counts the client's own cases only. */
     if(!S.cases.some(a=>a.sample))
-      S.cases.unshift(sample(assess(SAMPLES[0],false)), sample(assess(SAMPLES[3],false)));
+      S.cases.unshift(...samplesFor(S.vert).map(x=>sample(assess(x,false))));
     S.view='home'; render();
   };
 }
@@ -928,9 +1100,9 @@ function viewUpload(){
 
   v.append(el('div','eyebrow','STEP 1 OF 3 — UPLOAD'));
   v.append(el('h1','h-lg','Upload the closed account'));
-  v.append(el('p','sub','Drop the decision file: inspection reports, site photographs, invoices, '
-    +'draw requests, workflow logs, sign-offs, prior observations. Lens classifies each item '
-    +'into an evidence class and tells you what it could not establish.'));
+  v.append(el('p','sub','Drop the decision file: '+vert(S.vert).drop
+    +'. Lens classifies each item into an evidence class and tells you what it could not '
+    +'establish.'));
   const pvu=privacyBlock('upload'); pvu.style.marginTop='16px'; v.append(pvu);
 
   const drop=el('div','drop'); drop.style.marginTop='18px';
@@ -945,7 +1117,8 @@ function viewUpload(){
   const go=el('button','btn primary','Run assurance'); go.id='runbtn'; go.disabled=true;
   go.onclick=()=>runLive();
   const samp=el('button','btn','Use a sample account instead');
-  samp.onclick=()=>{ runOne(SAMPLES[S.nextSample % SAMPLES.length], false); };
+  samp.onclick=()=>{ const set=samplesFor(S.vert);
+    runOne(set[S.nextSample % set.length], false); };
   act.append(go,samp); v.append(act);
   const nt=el('div','note','Lens classifies each file and tests presence, freshness and sufficiency '
     +'from what it can read in the browser. Controls that need field-level data — a coordinate inside '
@@ -1066,7 +1239,7 @@ function sendCase(a){
   ].join('\n');
   postForm('lens-case',{
     email:who.email||'', phone:who.phone||'', company:who.company||'',
-    case:a.c.id, summary
+    industry:vert(S.vert).label, case:a.c.id, summary
   }, S.pendingFiles||[])
     .then(r=>{ a.delivered=!!(r&&r.ok); })
     .catch(()=>{ a.delivered=false; });
@@ -1077,9 +1250,11 @@ function runLive(){
   const cls=new Set(S.dropped.map(f=>f.cls));
   const newest=Math.max(...S.dropped.map(f=>f.mod));
   const age=Math.max(0,Math.round((Date.now()-newest)/864e5));
-  const c={id:'DE-'+(2000+S.cases.length), acct:'YOUR-ACCOUNT', parcel:'[SUBJECT]',
+  const V=vert(S.vert);
+  const c={id:'LC-'+(2000+S.cases.length), acct:'YOUR-ACCOUNT',
+    subject:V.subject.toUpperCase()+' [SUBJECT]', vert:S.vert,
     exposure:0, docAmount:0, ageDays:age, live:true,
-    claim:{subject:'[SUBJECT]',event:'claimed event',loc:true,window:true,quantity:0,
+    claim:{subject:V.subject.toUpperCase()+' [SUBJECT]',event:V.claim,loc:true,window:true,quantity:0,
       freshness:14,tolerancePct:5,offsetM:0},
     classes:cls, f:{governed:cls.has('EV-15'),trustedTime:cls.has('EV-06'),reused:false,
       screen:'clean',sharedOrigin:false,vague:false,corroborationRetro:false},
@@ -1170,7 +1345,7 @@ function viewReport(){
 
   if(demo){
     const banner=el('div','note'); banner.id='demobanner'; banner.style.marginBottom='16px';
-    banner.innerHTML='<b>Sample.</b> One of our own closed draws, here so you can see what comes '
+    banner.innerHTML='<b>Sample.</b> One of our own '+esc(vert(a.c.vert).book)+', here so you can see what comes '
       +'back before you send anything. It is not one of your cases and it has not used any of your '
       +'five free cases.';
     v.append(banner);
@@ -1185,7 +1360,8 @@ function viewReport(){
   v.append(head);
   v.append(el('p','sub', a.c.live
     ? 'Your uploaded file. '+a.c.files.length+' items across '+a.c.classes.size+' evidence classes.'
-    : esc(a.c.acct)+' · '+esc(a.c.parcel)+' · '+money(a.c.exposure)+' released · construction draw'));
+    : esc(a.c.acct)+' · '+esc(a.c.subject)+' · '+qty(a.c.vert,a.c.exposure)
+      +' '+vert(a.c.vert).verb+' · '+vert(a.c.vert).event));
 
   /* 1. conclusion */
   const s1=el('div','card'); s1.style.marginTop='18px';
@@ -1385,9 +1561,10 @@ function viewPaywall(){
       +'<div class="field"><label for="ccompany">COMPANY NAME</label>'
         +'<input id="ccompany" name="company" autocomplete="organization" value="'+esc(who.company||'')+'" required>'
         +'<span class="err" id="e-ccompany" hidden></span></div>'
+      +'<input type="hidden" id="cindustry" name="industry" value="'+esc(vert(S.vert).label)+'">'
       +'<div class="field"><label for="cmsg">HOW MANY CASES, AND HOW OFTEN</label>'
-        +'<textarea id="cmsg" name="message" rows="3" placeholder="e.g. a closed book of about 400 draws, '
-        +'re-baselined quarterly"></textarea></div>'
+        +'<textarea id="cmsg" name="message" rows="3" placeholder="e.g. a closed book of about 400 '
+        +esc(vert(S.vert).book.replace(/^closed /,''))+', re-baselined quarterly"></textarea></div>'
       +'<button class="btn primary" type="submit" style="width:100%">Send</button>';
     f.onsubmit=e=>{
       e.preventDefault();
@@ -1446,6 +1623,18 @@ function askQuota(action){
     body:JSON.stringify({action, email:S.profile.email,
       company:S.profile.company, phone:S.profile.phone})})
     .then(r=>{
+      /* A 404 is not an outage. It means the function was never deployed —
+         a configuration state, permanent until someone pushes the file, and
+         not something a client can act on or should be told about. Anything
+         else is a server that exists and is failing, which is worth saying.
+         The two are kept apart so the page does not accuse itself of a fault
+         it does not have, and so a prospect is not shown an error on their
+         first screen. Either way LENS.diag() reports which it was. */
+      if(r.status === 404){
+        const e = new Error('no quota endpoint is deployed at ' + QUOTA);
+        e.absent = true;
+        throw e;
+      }
       if(!r.ok) throw new Error('quota ' + r.status);
       return r.json();
     })
@@ -1455,16 +1644,24 @@ function askQuota(action){
           S.spent = d.used;
           S.quotaServer = !d.degraded;
           DIAG.quota = {action, used:d.used, limit:d.limit, scope:d.scope,
-            degraded: !!d.degraded};
+            endpoint: d.degraded ? 'deployed but not counting' : 'live',
+            enforced: !d.degraded,
+            reason: d.reason || undefined};
           saveState(); renderRail();
         });
       }
       return d;
     })
     .catch(err=>{
+      const absent = !!(err && err.absent);
       apply(()=>{
-        S.quotaServer = false;
-        DIAG.quota = {action, error: String((err && err.message) || err)};
+        /* 'absent' and false are deliberately different values: the notice
+           below tests for false exactly, so a missing endpoint stays silent
+           while a failing one does not. */
+        S.quotaServer = absent ? 'absent' : false;
+        DIAG.quota = {action, error: String((err && err.message) || err),
+          endpoint: absent ? 'not deployed' : 'failing',
+          enforced: false};
         renderRail();
       });
       return null;
@@ -1513,7 +1710,7 @@ function identity(email){
 const storeKey = id => STORE+'.'+id.key;
 
 function serialiseCase(c){
-  return {id:c.id, acct:c.acct, parcel:c.parcel, exposure:c.exposure,
+  return {id:c.id, acct:c.acct, subject:c.subject, vert:c.vert, exposure:c.exposure,
     docAmount:c.docAmount, ageDays:c.ageDays, live:!!c.live,
     claim:c.claim, classes:[...c.classes], f:c.f, files:c.files||[]};
 }
@@ -1524,8 +1721,9 @@ function saveState(){
   try{
     localStorage.setItem(storeKey(S.identity), JSON.stringify({
       v:2, at:Date.now(), profile:S.profile, paid:!!S.paid, spent:S.spent||0,
+      vert:S.vert,
       cases:S.cases.map(a=>a.sample
-        ? {sample:true, i:SAMPLES.findIndex(x=>x.id===a.c.id)}
+        ? {sample:true, sid:a.c.id}
         : {sample:false, c:serialiseCase(a.c)})
     }));
   }catch{ /* a private window or blocked site data; the session still works */ }
@@ -1564,8 +1762,9 @@ function restoreState(){
     S.profile=d.profile;
     S.paid=!!d.paid;
     S.spent=d.spent||0;
+    if(d.vert && VERT[d.vert]) S.vert=d.vert;
     S.cases=(d.cases||[]).map(x=>x.sample
-      ? sample(assess(SAMPLES[x.i>=0?x.i:0], false))
+      ? sample(assess(findSample(x), false))
       : assess(reviveCase(x.c), !!(x.c&&x.c.live)));
     return true;
   }catch{
@@ -1637,7 +1836,11 @@ $('#copycontact').onclick=async()=>{
 if(restoreState()) S.view='home';
 
 window.LENS = {
-  diag(){ return {build:'build 2026-09-25 00:54Z', endpoint:DIAG.endpoint, posts:DIAG.posts,
+  diag(){ return {build:'build 2026-09-25 03:00Z', endpoint:DIAG.endpoint, posts:DIAG.posts,
+    /* Whether the allowance is actually being enforced, and by what. This is
+       the question to ask the page after a deploy. */
+    quota:DIAG.quota || {endpoint:'not called yet'},
+    industry:vert(S.vert).label,
     undelivered:!!S.undelivered, profile:S.profile,
     cases:S.cases.length, mine:own().length, stored:(()=>{
       try{ return !!localStorage.getItem(STORE); }catch{ return 'unavailable'; }
